@@ -89,12 +89,12 @@
 
         async function verbinden() {
             const statusText = document.getElementById('status');
-            statusText.innerText = "Suche nach Sport_Uhr_Sensor...";
+            statusText.innerText = "Suche nach Geräten...";
 
             try {
-                // 1. Nach dem ESP32 scannen
+                // KORREKTUR: Filter komplett geöffnet, damit das iPhone alles anzeigt!
                 bluetoothGeraet = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'Sport_Uhr_Sensor' }],
+                    acceptAllDevices: true,
                     optionalServices: [SERVICE_UUID]
                 });
 
@@ -107,7 +107,7 @@
                 statusText.innerText = "Lade Datenkanal...";
                 bleCharakteristik = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-                // 2. Datenstrom abonnieren (Notifications)
+                // Datenstrom abonnieren (Notifications)
                 await bleCharakteristik.startNotifications();
                 bleCharakteristik.addEventListener('characteristicvaluechanged', datenEmpfangen);
 
@@ -128,7 +128,7 @@
             }
         }
 
-        // 3. Daten vom ESP32 empfangen und aufteilen
+        // Daten vom ESP32 empfangen und aufteilen
         function datenEmpfangen(event) {
             const value = event.target.value;
             
@@ -144,7 +144,7 @@
             document.getElementById('val-distanz').innerText = distanz.toFixed(2) + " km";
         }
 
-        // 4. Start oder Stopp an den ESP32 senden
+        // Start oder Stopp an den ESP32 senden
         async function sendeBefehl(wert) {
             if (!bleCharakteristik) return;
             try {
