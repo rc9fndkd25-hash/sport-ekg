@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sport EKG & Atem Tracker</title>
+    <title>Smartshirt-Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -21,6 +21,16 @@
         #btn-stopp { background-color: #ff1744; display: none; }
         #status { color: #ffaa00; font-weight: bold; margin-top: 10px; font-size: 14px; }
         
+        /* Profil-Einstellungen */
+        .settings-container {
+            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
+            max-width: 500px; margin: 10px auto; padding: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .settings-title { font-weight: bold; color: #aaaaaa; cursor: pointer; display: flex; justify-content: space-between; font-size: 14px; }
+        .settings-content { display: none; margin-top: 10px; }
+        .settings-content label { display: inline-block; width: 80px; font-size: 13px; margin-bottom: 5px; }
+        .settings-content input, .settings-content select { background: #333; color: white; border: 1px solid #555; padding: 5px; border-radius: 4px; margin-bottom: 5px; width: 80px; }
+
         .data-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -28,13 +38,18 @@
         }
         .card {
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
-            padding: 15px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            padding: 15px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.5s ease;
         }
         .card h2 { margin: 0; font-size: 11px; color: #aaaaaa; text-transform: uppercase; letter-spacing: 0.5px; }
         .card p { margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #ffffff; }
         .card .sub-val { font-size: 12px; color: #00e676; margin-top: 4px; }
         .card .sub-val-blue { font-size: 12px; color: #00d2ff; margin-top: 4px; }
         
+        /* Puls-Zonen Farben */
+        .zone-fatburn { background-color: #1b5e20 !important; border-color: #00e676 !important; }
+        .zone-cardio { background-color: #f57f17 !important; border-color: #ffd600 !important; }
+        .zone-peak { background-color: #b71c1c !important; border-color: #ff1744 !important; }
+
         .chart-container {
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
             max-width: 500px; margin: 15px auto; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -43,7 +58,17 @@
 </head>
 <body>
 
-    <h1>Sport EKG & Atem Tracker</h1>
+    <h1>Smartshirt-Tracker</h1>
+
+    <div class="settings-container">
+        <div class="settings-title" onclick="toggleSettings()">👤 Benutzerprofil (für kcal-Berechnung) <span id="settings-arrow">▼</span></div>
+        <div class="settings-content" id="settings-content">
+            <label>Geschlecht:</label>
+            <select id="user-gender"><option value="male">Männlich</option><option value="female">Weiblich</option></select><br>
+            <label>Alter:</label> <input type="number" id="user-age" value="25"> Jahre<br>
+            <label>Gewicht:</label> <input type="number" id="user-weight" value="75"> kg
+        </div>
+    </div>
 
     <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
     <div>
@@ -53,31 +78,32 @@
 
     <p id="status">Status: Bereit</p>
 
-    <div class="chart-container">
-        <canvas id="ekgChart" style="width:100%; height:140px;"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="atemChart" style="width:100%; height:140px;"></canvas>
-    </div>
+    <div class="chart-container"><canvas id="ekgChart" style="width:100%; height:130px;"></canvas></div>
+    <div class="chart-container"><canvas id="atemChart" style="width:100%; height:130px;"></canvas></div>
 
     <div class="data-container">
-        <div class="card">
+        <div class="card" id="card-puls">
             <h2>Puls (BPM)</h2>
             <p id="val-puls">--</p>
-            <div class="sub-val" id="val-puls-stats">Ø: -- | Max: --</div>
+            <div class="sub-val" id="val-puls-stats" style="color: #fff;">Ø: -- | Max: --</div>
         </div>
         <div class="card">
             <h2>Atmung (BRM)</h2>
             <p id="val-atmung" style="color: #00d2ff;">--</p>
-            <div class="sub-val-blue" id="val-atmung-stats">Ø: --0</div>
+            <div class="sub-val-blue" id="val-atmung-stats">Ø: -- BRM</div>
+        </div>
+        <div class="card">
+            <h2>Kalorienverbrauch</h2>
+            <p id="val-kcal" style="color: #ff9100;">0 <span style="font-size:12px;">kcal</span></p>
+            <div id="val-recovery" style="font-size:11px; color:#aaa; margin-top:5px;">Erholung: Warten...</div>
         </div>
         <div class="card">
             <h2>Geschwindigkeit</h2>
             <p id="val-speed">0.0 <span style="font-size:12px;">km/h</span></p>
-            <div class="sub-val" id="val-speed-avg">Ø: 0.0 km/h</div>
+            <div class="sub-val" id="val-speed-avg" style="color: #fff;">Ø: 0.0 km/h</div>
         </div>
-        <div class="card">
-            <h2>Distanz</h2>
+        <div class="card" style="grid-column: span 2;">
+            <h2>Gesamte Distanz</h2>
             <p id="val-distanz">0.00 <span style="font-size:12px;">km</span></p>
         </div>
     </div>
@@ -94,8 +120,11 @@
         let speedListe = [];
         let atmungListe = [];
         let maxPuls = 0;
+        
+        let totalKcal = 0;
+        let workoutStartTime = null;
+        let recoveryTimer = null;
 
-        // EKG Diagramm Setup
         const ctxEkg = document.getElementById('ekgChart').getContext('2d');
         const ekgChart = new Chart(ctxEkg, {
             type: 'line',
@@ -103,13 +132,19 @@
             options: { responsive: true, animation: false, scales: { y: { min: 40, max: 200, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
         });
 
-        // Atem Diagramm Setup
         const ctxAtem = document.getElementById('atemChart').getContext('2d');
         const atemChart = new Chart(ctxAtem, {
             type: 'line',
             data: { labels: Array(30).fill(''), datasets: [{ label: 'Atemfrequenz', data: Array(30).fill(null), borderColor: '#00d2ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
             options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
         });
+
+        function toggleSettings() {
+            const content = document.getElementById('settings-content');
+            const arrow = document.getElementById('settings-arrow');
+            if(content.style.display === 'block') { content.style.display = 'none'; arrow.innerText = '▼'; }
+            else { content.style.display = 'block'; arrow.innerText = '▲'; }
+        }
 
         async function verbinden() {
             const statusText = document.getElementById('status');
@@ -138,13 +173,13 @@
 
         function datenEmpfangen(event) {
             const value = event.target.value;
-            if (value.byteLength < 5) return; // Erwartet jetzt mindestens 5 Bytes
+            if (value.byteLength < 5) return;
 
             const typ = value.getUint8(0);
             const puls = value.getUint8(1);
             const speed = value.getUint8(2);
             const distanzRaw = value.getUint8(3);
-            const atmung = value.getUint8(4); // NEU: Byte 4 ist die Atmung
+            const atmung = value.getUint8(4);
             const distanz = distanzRaw / 10;
 
             if(typ === 0x99) {
@@ -152,16 +187,33 @@
                 document.getElementById('status').style.color = "#ffaa00";
             }
 
-            // EKG Daten verarbeiten
+            const pulsCard = document.getElementById('card-puls');
+            pulsCard.className = "card"; 
             if (puls > 0) {
                 pulsListe.push(puls);
                 if (puls > maxPuls) maxPuls = puls;
+                
+                if(puls >= 110 && puls <= 130) pulsCard.classList.add('zone-fatburn');
+                else if(puls > 130 && puls <= 160) pulsCard.classList.add('zone-cardio');
+                else if(puls > 160) pulsCard.classList.add('zone-peak');
+
                 ekgChart.data.datasets[0].data.shift();
                 ekgChart.data.datasets[0].data.push(puls);
                 ekgChart.update();
+
+                const gender = document.getElementById('user-gender').value;
+                const age = parseFloat(document.getElementById('user-age').value);
+                const weight = parseFloat(document.getElementById('user-weight').value);
+                let kcalPerMinute = 0;
+
+                if (gender === 'male') {
+                    kcalPerMinute = (-55.0969 + (0.6309 * puls) + (0.1988 * weight) + (0.2017 * age)) / 4.184;
+                } else {
+                    kcalPerMinute = (-20.4022 + (0.4472 * puls) - (0.1263 * weight) + (0.074 * age)) / 4.184;
+                }
+                if(kcalPerMinute > 0) totalKcal += (kcalPerMinute / 60); 
             }
 
-            // Atem Daten verarbeiten
             if (atmung > 0) {
                 atmungListe.push(atmung);
                 atemChart.data.datasets[0].data.shift();
@@ -172,18 +224,15 @@
                 speedListe.push(speed);
             }
 
-            // Durchschnitte berechnen
             const avgPuls = pulsListe.length > 0 ? Math.round(pulsListe.reduce((a, b) => a + b) / pulsListe.length) : "--";
             const avgSpeed = speedListe.length > 0 ? (speedListe.reduce((a, b) => a + b) / speedListe.length).toFixed(1) : "0.0";
             const avgAtmung = atmungListe.length > 0 ? Math.round(atmungListe.reduce((a, b) => a + b) / atmungListe.length) : "--";
 
-            // UI updaten
             document.getElementById('val-puls').innerText = puls > 0 ? puls : "--";
             document.getElementById('val-puls-stats').innerText = `Ø: ${avgPuls} | Max: ${maxPuls}`;
-            
             document.getElementById('val-atmung').innerText = atmung > 0 ? atmung : "--";
             document.getElementById('val-atmung-stats').innerText = `Ø: ${avgAtmung} BRM`;
-            
+            document.getElementById('val-kcal').innerHTML = `${Math.round(totalKcal)} <span style="font-size:12px;">kcal</span>`;
             document.getElementById('val-speed').innerHTML = `${speed.toFixed(1)} <span style="font-size:12px;">km/h</span>`;
             document.getElementById('val-speed-avg').innerText = `Ø: ${avgSpeed} km/h`;
             document.getElementById('val-distanz').innerHTML = `${distanz.toFixed(2)} <span style="font-size:12px;">km</span>`;
@@ -212,16 +261,31 @@
                 
                 if (wert === 1) {
                     amLaufen = true;
-                    pulsListe = []; speedListe = []; atmungListe = []; maxPuls = 0; // Alle Listen resetten
+                    pulsListe = []; speedListe = []; atmungListe = []; maxPuls = 0; totalKcal = 0;
+                    document.getElementById('val-recovery').innerText = "Erholung: Training läuft...";
                     statusText.innerText = "Training läuft...";
                     document.getElementById('btn-start').style.display = 'none';
                     document.getElementById('btn-stopp').style.display = 'inline-block';
                 } else {
                     amLaufen = false;
-                    statusText.innerText = "Training gestoppt und gespeichert.";
+                    statusText.innerText = "Training gestoppt. Starte Erholungspuls-Messung...";
                     document.getElementById('btn-start').style.display = 'inline-block';
                     document.getElementById('btn-stopp').style.display = 'none';
                     document.getElementById('btn-connect').style.display = 'inline-block';
+                    
+                    const pulsBeimStopp = pulsListe.length > 0 ? pulsListe[pulsListe.length - 1] : 0;
+                    document.getElementById('val-recovery').innerText = "Erholung: Messe (60s)...";
+                    
+                    if(recoveryTimer) clearTimeout(recoveryTimer);
+                    recoveryTimer = setTimeout(() => {
+                        const pulsNachEinerMinute = pulsListe.length > 0 ? pulsListe[pulsListe.length - 1] : 0;
+                        const drop = pulsBeimStopp - pulsNachEinerMinute;
+                        if(pulsBeimStopp > 0 && drop >= 0) {
+                            document.getElementById('val-recovery').innerHTML = `Erholung: <b>-${drop} BPM</b> in 1 Min`;
+                        } else {
+                            document.getElementById('val-recovery').innerText = "Erholung: Keine Daten";
+                        }
+                    }, 60000); 
                 }
             } catch (error) {
                 console.error("Fehler beim Senden", error);
