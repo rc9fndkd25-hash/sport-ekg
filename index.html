@@ -28,7 +28,7 @@
             max-width: 300px;
             transition: 0.2s;
         }
-        #btn-connect { background-color: #007bff; }
+        #btn-connect { background-color: #007bff; display: inline-block; }
         #btn-start { background-color: #00e676; color: black; display: none; }
         #btn-stopp { background-color: #ff1744; display: none; }
         
@@ -57,13 +57,13 @@
 
     <h1>Sport EKG</h1>
 
-    <button id="btn-connect" class="btn" onclick="verbinden()">1. Uhr koppeln</button>
+    <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
     <div>
         <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
-        <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save)</button>
+        <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
     </div>
 
-    <p id="status">Status: Nicht verbunden</p>
+    <p id="status">Status: Bereit</p>
 
     <div class="data-container">
         <div class="card">
@@ -86,82 +86,111 @@
 
         let bluetoothGeraet = null;
         let bleCharakteristik = null;
+        let amLaufen = false;
 
         async function verbinden() {
             const statusText = document.getElementById('status');
             statusText.innerText = "Suche nach Geräten...";
 
             try {
-                // KORREKTUR: Filter komplett geöffnet, damit das iPhone alles anzeigt!
                 bluetoothGeraet = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
                     optionalServices: [SERVICE_UUID]
                 });
 
-                statusText.innerText = "Verbinde mit Server...";
+                statusText.innerText = "Verbinde...";
                 const server = await bluetoothGeraet.gatt.connect();
-
-                statusText.innerText = "Lade Service...";
                 const service = await server.getPrimaryService(SERVICE_UUID);
-
-                statusText.innerText = "Lade Datenkanal...";
                 bleCharakteristik = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-                // Datenstrom abonnieren (Notifications)
                 await bleCharakteristik.startNotifications();
                 bleCharakteristik.addEventListener('characteristicvaluechanged', datenEmpfangen);
 
-                statusText.innerText = "Erfolgreich verbunden!";
+                statusText.innerText = amLaufen ? "Wieder verbunden! Workout läuft..." : "Erfolgreich verbunden!";
                 statusText.style.color = "#00e676";
                 
-                // Buttons anzeigen
+                // Interface anpassen
                 document.getElementById('btn-connect').style.display = 'none';
-                document.getElementById('btn-start').style.display = 'inline-block';
+                document.getElementById('btn-start').style.display = amLaufen ? 'none' : 'inline-block';
                 document.getElementById('btn-stopp').style.display = 'inline-block';
 
                 bluetoothGeraet.addEventListener('gattserverdisconnected', onDisconnected);
 
             } catch (error) {
-                console.log(error);
                 statusText.innerText = "Verbindung fehlgeschlagen.";
                 statusText.style.color = "#ff1744";
             }
         }
 
-        // Daten vom ESP32 empfangen und aufteilen
         function datenEmpfangen(event) {
             const value = event.target.value;
-            
-            // Byte-Paket auslesen (Index startet bei JavaScript bei 0)
+            if (value.byteLength < 4) return;
+
+            // Paket-Typ auslesen (0x11 = Live, 0x99 = Backup aus Flash)
+            const typ = value.getUint8(0);
             const puls = value.getUint8(1);
             const speed = value.getUint8(2);
             const distanzRaw = value.getUint8(3);
             const distanz = distanzRaw / 10;
 
-            // HTML Oberflaeche updaten
+            if(typ === 0x99) {
+                document.getElementById('status').innerText = "Synchronisiere Daten aus Flash...";
+                document.getElementById('status').style.color = "#ffaa00";
+            }
+
+            // UI updaten
             document.getElementById('val-puls').innerText = puls > 0 ? puls + " BPM" : "-- BPM";
             document.getElementById('val-speed').innerText = speed.toFixed(1) + " km/h";
             document.getElementById('val-distanz').innerText = distanz.toFixed(2) + " km";
+            
+            if(typ === 0x99) {
+                setTimeout(() => {
+                    document.getElementById('status').innerText = "Synchronisation abgeschlossen. Training beendet.";
+                    document.getElementById('status').style.color = "#00e676";
+                }, 1000);
+            }
         }
 
-        // Start oder Stopp an den ESP32 senden
         async function sendeBefehl(wert) {
+            const statusText = document.getElementById('status');
+            
+            // WICHTIG: Wenn wir Stoppen wollen, aber keine Verbindung da ist
+            if (wert === 0 && !bleCharakteristik) {
+                statusText.innerText = "Bitte erst wieder KOPPELN, um das Workout zu beenden!";
+                statusText.style.color = "#ff1744";
+                document.getElementById('btn-connect').style.style.display = 'inline-block';
+                return;
+            }
+
             if (!bleCharakteristik) return;
+
             try {
                 const datenBefehl = new Uint8Array([wert]);
                 await bleCharakteristik.writeValue(datenBefehl);
-                document.getElementById('status').innerText = wert === 1 ? "Training läuft..." : "Training gestoppt.";
+                
+                if (wert === 1) {
+                    amLaufen = true;
+                    statusText.innerText = "Training läuft...";
+                    document.getElementById('btn-start').style.display = 'none';
+                    document.getElementById('btn-stopp').style.display = 'inline-block';
+                } else {
+                    amLaufen = false;
+                    statusText.innerText = "Training gestoppt und gespeichert.";
+                    document.getElementById('btn-start').style.display = 'inline-block';
+                    document.getElementById('btn-stopp').style.display = 'none';
+                    document.getElementById('btn-connect').style.display = 'inline-block';
+                }
             } catch (error) {
-                console.error("Senden fehlgeschlagen", error);
+                console.error("Fehler beim Senden", error);
             }
         }
 
         function onDisconnected() {
-            document.getElementById('status').innerText = "Verbindung verloren.";
-            document.getElementById('status').style.color = "#ff1744";
+            // Die Buttons bleiben da! Nur der Status warnt den Nutzer
+            document.getElementById('status').innerText = "Verbindung weg (Du läufst autark).";
+            document.getElementById('status').style.color = "#ffaa00";
             document.getElementById('btn-connect').style.display = 'inline-block';
-            document.getElementById('btn-start').style.display = 'none';
-            document.getElementById('btn-stopp').style.display = 'none';
+            bleCharakteristik = null;
         }
     </script>
 </body>
