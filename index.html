@@ -34,7 +34,6 @@
         /* HAUPT-DASHBOARD */
         #main-dashboard { display: none; }
 
-        /* Profil-Einstellungen (Jetzt direkt editierbar, da kein fester Auth-Zwang mehr) */
         .settings-container {
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
             max-width: 500px; margin: 10px auto; padding: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -68,7 +67,6 @@
             max-width: 500px; margin: 15px auto; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
-        /* Historie Bereich */
         .history-container {
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
             max-width: 500px; margin: 20px auto; padding: 15px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -89,7 +87,7 @@
 
     <div id="main-dashboard">
         <h1>Smartshirt-Tracker</h1>
-        <div class="subtitle">Anonymer Cloud-Account aktiv (Kein Login nötig)</div>
+        <div class="subtitle" id="account-type-text">Modus: Tracker aktiv</div>
 
         <div class="settings-container">
             <div class="settings-title" onclick="toggleSettings()">👤 Deine Kcal-Daten (Optional) <span id="settings-arrow">▼</span></div>
@@ -101,7 +99,7 @@
                 </select><br>
                 <label>Alter (Jahre):</label> <input type="number" id="user-age" value="25"><br>
                 <label>Gewicht (kg):</label> <input type="number" id="user-weight" value="75"><br>
-                <button class="btn-update-profile" onclick="saveUserProfile()">Daten für Kcal-Berechnung merken</button>
+                <button class="btn-update-profile" onclick="saveUserProfile()">Daten merken</button>
             </div>
         </div>
 
@@ -111,7 +109,7 @@
         <div>
             <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
             <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
-            <button id="btn-save" class="btn" onclick="saveWorkoutToCloud()">Workout in Cloud sichern</button>
+            <button id="btn-save" class="btn" onclick="saveWorkoutToCloud()">Workout sichern</button>
         </div>
 
         <p id="status">Status: Bereit</p>
@@ -148,7 +146,7 @@
 
         <div class="history-container">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 10px;">
-                <h3 style="margin: 0; color: #00e676; font-size: 16px;">📋 Deine Cloud Workout Historie</h3>
+                <h3 style="margin: 0; color: #00e676; font-size: 16px;">📋 Deine Workout Historie</h3>
                 <button id="btn-export" onclick="exportToCSV()">Als CSV exportieren</button>
             </div>
             <table class="history-table">
@@ -169,15 +167,13 @@
     </div>
 
     <script>
-        // ========================================================
-        // CONF-BEREICH
-        // ========================================================
         const SUPABASE_URL = "https://jlmwmrpfegaanfildeop.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsbXdtcnBmZWdhYW5maWxkZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MzgxMjIsImV4cCI6MjA5NzExNDEyMn0.8QaxLec0GXCBw-EoOBAT8Zy5tQfcaLVs-Ny2TlEqT1o";
         
         let supabase = null;
         let currentUser = null;
-        let cachedWorkouts = []; // Für den CSV Export
+        let useLocalStorageBackup = false;
+        let cachedWorkouts = [];
 
         const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
@@ -190,7 +186,6 @@
         let speedListe = [];
         let atmungListe = [];
         let maxPuls = 0;
-        
         let totalKcal = 0;
         let startTimeStamp = null;
         let recoveryTimer = null;
@@ -199,75 +194,85 @@
         let ekgChart, atemChart;
 
         window.addEventListener('DOMContentLoaded', async () => {
+            // Diagramme initialisieren
+            const ctxEkg = document.getElementById('ekgChart').getContext('2d');
+            ekgChart = new Chart(ctxEkg, {
+                type: 'line',
+                data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(null), borderColor: '#00e676', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                options: { responsive: true, animation: false, scales: { y: { min: 40, max: 200, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+
+            const ctxAtem = document.getElementById('atemChart').getContext('2d');
+            atemChart = new Chart(ctxAtem, {
+                type: 'line',
+                data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(null), borderColor: '#00d2ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+
             try {
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-                // Diagramme initialisieren
-                const ctxEkg = document.getElementById('ekgChart').getContext('2d');
-                ekgChart = new Chart(ctxEkg, {
-                    type: 'line',
-                    data: { labels: Array(30).fill(''), datasets: [{ label: 'EKG Verlauf', data: Array(30).fill(null), borderColor: '#00e676', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
-                    options: { responsive: true, animation: false, scales: { y: { min: 40, max: 200, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
-                });
-
-                const ctxAtem = document.getElementById('atemChart').getContext('2d');
-                atemChart = new Chart(ctxAtem, {
-                    type: 'line',
-                    data: { labels: Array(30).fill(''), datasets: [{ label: 'Atemfrequenz', data: Array(30).fill(null), borderColor: '#00d2ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
-                    options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
-                });
-
-                // AUTOMATISCHER ANONYMER LOGIN / ACCOUNT CHECK
-                const { data: sessionData } = await supabase.auth.getSession();
-                let session = sessionData.session;
+                
+                // Anonymen Login testen mit automatischem Timeout-Schutz
+                const { data: sessionData, error: sErr } = await supabase.auth.getSession();
+                let session = sessionData ? sessionData.session : null;
 
                 if (!session) {
-                    document.getElementById('loading-text').innerText = "Erstelle sicheren anonymen Zugang...";
                     const { data: signInData, error } = await supabase.auth.signInAnonymously();
-                    if (error) {
-                        alert("Fehler beim Erstellen des anonymen Kontos: " + error.message);
-                        return;
-                    }
+                    if (error) { throw new Error("Supabase blockiert anonyme Konten."); }
                     session = signInData.session;
                 }
 
                 currentUser = session.user;
-                document.getElementById('loading-screen').style.display = 'none';
-                document.getElementById('main-dashboard').style.display = 'block';
-                
-                // Profil & Historie laden
+                document.getElementById('account-type-text').innerText = "Modus: Anonymer Cloud-Speicher aktiv";
                 loadUserProfileAndHistory();
 
             } catch (err) {
-                console.error("Fehler im System:", err);
-                document.getElementById('loading-text').innerText = "Fehler bei der Cloud-Verbindung.";
+                console.warn("Wechsle auf lokales Speicher-Backup:", err);
+                useLocalStorageBackup = true;
+                document.getElementById('account-type-text').innerText = "Modus: Sicherer Offline-Speicher (Browser)";
+                updateHistoryTable();
+            } finally {
+                // EGAL WAS PASSIERT: Ladebildschirm jetzt entfernen und Dashboard freigeben!
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('main-dashboard').style.display = 'block';
             }
         });
 
         async function loadUserProfileAndHistory() {
-            if (!currentUser || !supabase) return;
+            // Lokale Profildaten laden, falls vorhanden
+            const savedGender = localStorage.getItem('shirt_gender');
+            const savedAge = localStorage.getItem('shirt_age');
+            const savedWeight = localStorage.getItem('shirt_weight');
+            if(savedGender) document.getElementById('user-gender').value = savedGender;
+            if(savedAge) document.getElementById('user-age').value = savedAge;
+            if(savedWeight) document.getElementById('user-weight').value = savedWeight;
 
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
-            if (profile) {
-                document.getElementById('user-age').value = profile.age;
-                document.getElementById('user-weight').value = profile.weight;
-                document.getElementById('user-gender').value = profile.gender;
+            if (!useLocalStorageBackup && currentUser && supabase) {
+                try {
+                    const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+                    if (profile) {
+                        document.getElementById('user-age').value = profile.age;
+                        document.getElementById('user-weight').value = profile.weight;
+                        document.getElementById('user-gender').value = profile.gender;
+                    }
+                } catch(e){}
             }
             updateHistoryTable();
         }
 
         async function saveUserProfile() {
-            if (!currentUser || !supabase) return;
             const age = parseInt(document.getElementById('user-age').value);
             const weight = parseInt(document.getElementById('user-weight').value);
             const gender = document.getElementById('user-gender').value;
 
-            const { error } = await supabase.from('profiles').upsert({
-                id: currentUser.id, age: age, weight: weight, gender: gender
-            });
+            localStorage.setItem('shirt_gender', gender);
+            localStorage.setItem('shirt_age', age);
+            localStorage.setItem('shirt_weight', weight);
 
-            if (error) alert("Fehler beim Profil-Speichern: " + error.message);
-            else alert("Kcal-Profil erfolgreich aktualisiert!");
+            if (!useLocalStorageBackup && currentUser && supabase) {
+                await supabase.from('profiles').upsert({ id: currentUser.id, age: age, weight: weight, gender: gender });
+            }
+            alert("Daten erfolgreich gemerkt!");
         }
 
         function toggleSettings() {
@@ -375,7 +380,7 @@
             
             if(typ === 0x99) {
                 setTimeout(() => {
-                    document.getElementById('status').innerText = "Synchronisation abgeschlossen. Training beendet.";
+                    document.getElementById('status').innerText = "Synchronisation abgeschlossen.";
                     document.getElementById('status').style.color = "#00e676";
                     document.getElementById('btn-save').style.display = 'inline-block'; 
                 }, 1000);
@@ -406,7 +411,7 @@
                     document.getElementById('btn-save').style.display = 'none';
                 } else {
                     amLaufen = false;
-                    statusText.innerText = "Training gestoppt. Starte Erholungspuls-Messung...";
+                    statusText.innerText = "Training gestoppt.";
                     document.getElementById('btn-start').style.display = 'inline-block';
                     document.getElementById('btn-stopp').style.display = 'none';
                     document.getElementById('btn-connect').style.display = 'inline-block';
@@ -428,17 +433,17 @@
         }
 
         function onDisconnected() {
-            document.getElementById('status').innerText = "Verbindung weg (Du läufst autark).";
+            document.getElementById('status').innerText = "Verbindung weg (Autarker Modus).";
             document.getElementById('status').style.color = "#ffaa00";
             document.getElementById('btn-connect').style.display = 'inline-block';
             bleCharakteristik = null;
         }
 
         // ========================================================
-        // CLOUD SPEICHER & HISTORIE LOGIK (SUPABASE)
+        // SPEICHER LOGIK (CLOUD ODER LOCALSTORAGE)
         // ========================================================
         async function saveWorkoutToCloud() {
-            if (!startTimeStamp || !currentUser || !supabase) return;
+            if (!startTimeStamp) return;
 
             const endTimeStamp = new Date();
             const dauerSekunden = Math.round((endTimeStamp - startTimeStamp) / 1000);
@@ -446,26 +451,38 @@
             const mins = Math.floor((dauerSekunden % 3600) / 60);
             const secs = dauerSekunden % 60;
             const dauerString = `${hrs > 0 ? hrs + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
             const datumString = startTimeStamp.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-            const { error } = await supabase.from('workouts').insert([
-                { 
-                    user_id: currentUser.id, 
-                    datum: datumString, 
-                    dauer: dauerString, 
-                    distanz: finalDistance.toFixed(2) + " km", 
-                    kcal: Math.round(totalKcal), 
-                    max_puls: maxPuls > 0 ? maxPuls + " BPM" : "--"
-                }
-            ]);
+            const newWorkout = {
+                id: Date.now(),
+                datum: datumString,
+                dauer: dauerString,
+                distanz: finalDistance.toFixed(2) + " km",
+                kcal: Math.round(totalKcal),
+                max_puls: maxPuls > 0 ? maxPuls + " BPM" : "--"
+            };
 
-            if (error) {
-                alert("Fehler beim Cloud-Speichern: " + error.message);
-            } else {
+            if (useLocalStorageBackup) {
+                let localData = JSON.parse(localStorage.getItem('shirt_workouts') || '[]');
+                localData.unshift(newWorkout);
+                localStorage.setItem('shirt_workouts', JSON.stringify(localData));
                 updateHistoryTable();
                 document.getElementById('btn-save').style.display = 'none';
-                alert("Workout sicher in deiner Cloud gespeichert!");
+                alert("Workout lokal auf deinem Handy gesichert!");
+            } else {
+                const { error } = await supabase.from('workouts').insert([{ 
+                    user_id: currentUser.id, datum: datumString, dauer: dauerString, distanz: newWorkout.distanz, kcal: newWorkout.kcal, max_puls: newWorkout.max_puls
+                }]);
+
+                if (error) {
+                    alert("Cloud-Fehler. Speichere stattdessen lokal.");
+                    useLocalStorageBackup = true;
+                    saveWorkoutToCloud();
+                } else {
+                    updateHistoryTable();
+                    document.getElementById('btn-save').style.display = 'none';
+                    alert("Workout sicher in der Cloud gespeichert!");
+                }
             }
         }
 
@@ -473,19 +490,19 @@
             const tbody = document.getElementById('history-tbody');
             tbody.innerHTML = "";
 
-            if (!currentUser || !supabase) return;
+            if (useLocalStorageBackup) {
+                cachedWorkouts = JSON.parse(localStorage.getItem('shirt_workouts') || '[]');
+            } else if (currentUser && supabase) {
+                const { data, error } = await supabase.from('workouts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+                if (!error && data) cachedWorkouts = data;
+            }
 
-            const { data: workouts, error } = await supabase.from('workouts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-
-            if (error || !workouts || workouts.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#555; padding: 20px;">Noch keine Workouts in der Cloud gesichert.</td></tr>`;
-                cachedWorkouts = [];
+            if (cachedWorkouts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#555; padding: 20px;">Noch keine Workouts gesichert.</td></tr>`;
                 return;
             }
 
-            cachedWorkouts = workouts; // Speichern für CSV
-
-            workouts.forEach(workout => {
+            cachedWorkouts.forEach(workout => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${workout.datum}</td>
@@ -500,27 +517,24 @@
         }
 
         async function deleteWorkout(id) {
-            if (!supabase) return;
-            if(confirm("Möchtest du dieses Workout wirklich aus der Cloud löschen?")) {
-                const { error } = await supabase.from('workouts').delete().eq('id', id);
-                if (!error) updateHistoryTable();
+            if(confirm("Workout wirklich löschen?")) {
+                if (useLocalStorageBackup) {
+                    let localData = JSON.parse(localStorage.getItem('shirt_workouts') || '[]');
+                    localData = localData.filter(w => w.id !== id);
+                    localStorage.setItem('shirt_workouts', JSON.stringify(localData));
+                    updateHistoryTable();
+                } else if (supabase) {
+                    // id ist bei Supabase die Tabellen-ID
+                    await supabase.from('workouts').delete().eq('id', id);
+                    updateHistoryTable();
+                }
             }
         }
 
-        // --- METHODE 3 ERWEITERUNG: CSV DATEI DOWNLOAD ---
         function exportToCSV() {
-            if (cachedWorkouts.length === 0) {
-                alert("Keine Workouts zum Exportieren vorhanden!");
-                return;
-            }
-
-            let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "Datum;Dauer;Distanz;Kalorien(kcal);Max_Puls\n"; // Header
-
-            cachedWorkouts.forEach(w => {
-                csvContent += `${w.datum};${w.dauer};${w.distanz};${w.kcal};${w.max_puls}\n`;
-            });
-
+            if (cachedWorkouts.length === 0) { alert("Keine Workouts vorhanden!"); return; }
+            let csvContent = "data:text/csv;charset=utf-8,Datum;Dauer;Distanz;Kalorien(kcal);Max_Puls\n";
+            cachedWorkouts.forEach(w => { csvContent += `${w.datum};${w.dauer};${w.distanz};${w.kcal};${w.max_puls}\n`; });
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
