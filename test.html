@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smartshirt-Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #121212; color: #ffffff; text-align: center; padding: 15px; margin: 0;
+        }
+        h1 { color: #00e676; margin-bottom: 5px; font-size: 24px; }
+        .subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
+        .btn {
+            background-color: #333; color: white; border: none; padding: 15px 25px;
+            font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer;
+            margin: 10px auto; width: 85%; max-width: 300px; transition: 0.2s; display: block;
+        }
+        #btn-connect { background-color: #007bff; display: inline-block; }
+        #btn-start { background-color: #00e676; color: black; display: none; }
+        #btn-stopp { background-color: #ff1744; display: none; }
+        #btn-save { background-color: #ff9100; color: black; display: none; }
+        #btn-export { background-color: #555; color: white; display: inline-block; width: auto; padding: 8px 15px; font-size: 12px; margin-top: 5px; }
+        #status { color: #ffaa00; font-weight: bold; margin-top: 10px; font-size: 14px; }
+        
+        /* Lade-Bildschirm beim Start */
+        #loading-screen {
+            background-color: #121212; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column;
+        }
+
+        /* HAUPT-DASHBOARD */
+        #main-dashboard { display: none; }
+
+        .settings-container {
+            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
+            max-width: 500px; margin: 10px auto; padding: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .settings-title { font-weight: bold; color: #aaaaaa; cursor: pointer; display: flex; justify-content: space-between; font-size: 14px; }
+        .settings-content { display: none; margin-top: 10px; }
+        .settings-content label { display: inline-block; width: 100px; font-size: 13px; margin-bottom: 5px; }
+        .settings-content input, .settings-content select { background: #333; color: white; border: 1px solid #555; padding: 6px; border-radius: 4px; margin-bottom: 5px; width: 90px; }
+        .btn-update-profile { background-color: #00e676; color: black; border: none; padding: 5px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 5px; }
+
+        .data-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px; max-width: 500px; margin: 20px auto; padding: 0 10px;
+        }
+        .card {
+            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
+            padding: 15px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: background-color 0.5s ease;
+        }
+        .card h2 { margin: 0; font-size: 11px; color: #aaaaaa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card p { margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #ffffff; }
+        .card .sub-val { font-size: 12px; color: #00e676; margin-top: 4px; }
+        .card .sub-val-blue { font-size: 12px; color: #00d2ff; margin-top: 4px; }
+        
+        .zone-fatburn { background-color: #1b5e20 !important; border-color: #00e676 !important; }
+        .zone-cardio { background-color: #f57f17 !important; border-color: #ffd600 !important; }
+        .zone-peak { background-color: #b71c1c !important; border-color: #ff1744 !important; }
+
+        .chart-container {
+            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
+            max-width: 500px; margin: 15px auto; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .history-container {
+            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
+            max-width: 500px; margin: 20px auto; padding: 15px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .history-container h3 { margin-top: 0; color: #00e676; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .history-table th { color: #aaa; text-align: left; padding: 6px; border-bottom: 1px solid #333; }
+        .history-table td { padding: 8px 6px; border-bottom: 1px solid #222; }
+        .btn-delete { background: none; border: none; color: #ff1744; cursor: pointer; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <h2 style="color: #00e676;">Smartshirt-Tracker</h2>
+        <p style="color: #aaa;" id="loading-text">Verbindung zur Cloud wird gesichert...</p>
+    </div>
+
+    <div id="main-dashboard">
+        <h1>Smartshirt-Tracker</h1>
+        <div class="subtitle" id="account-type-text">Modus: Tracker aktiv</div>
+
+        <div class="settings-container">
+            <div class="settings-title" onclick="toggleSettings()">👤 Deine Kcal-Daten (Optional) <span id="settings-arrow">▼</span></div>
+            <div class="settings-content" id="settings-content">
+                <label>Geschlecht:</label> 
+                <select id="user-gender">
+                    <option value="male">Männlich</option>
+                    <option value="female">Weiblich</option>
+                </select><br>
+                <label>Alter (Jahre):</label> <input type="number" id="user-age" value="25"><br>
+                <label>Gewicht (kg):</label> <input type="number" id="user-weight" value="75"><br>
+                <button class="btn-update-profile" onclick="saveUserProfile()">Daten merken</button>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+            <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
+        </div>
+        <div>
+            <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
+            <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
+            <button id="btn-save" class="btn" onclick="saveWorkoutToCloud()">Workout sichern</button>
+        </div>
+
+        <p id="status">Status: Bereit</p>
+
+        <div class="chart-container"><canvas id="ekgChart" style="width:100%; height:130px;"></canvas></div>
+        <div class="chart-container"><canvas id="atemChart" style="width:100%; height:130px;"></canvas></div>
+
+        <div class="data-container">
+            <div class="card" id="card-puls">
+                <h2>Puls (BPM)</h2>
+                <p id="val-puls">--</p>
+                <div class="sub-val" id="val-puls-stats" style="color: #fff;">Ø: -- | Max: --</div>
+            </div>
+            <div class="card">
+                <h2>Atmung (BRM)</h2>
+                <p id="val-atmung" style="color: #00d2ff;">--</p>
+                <div class="sub-val-blue" id="val-atmung-stats">Ø: -- BRM</div>
+            </div>
+            <div class="card">
+                <h2>Kalorienverbrauch</h2>
+                <p id="val-kcal" style="color: #ff9100;">0 <span style="font-size:12px;">kcal</span></p>
+                <div id="val-recovery" style="font-size:11px; color:#aaa; margin-top:5px;">Erholung: Warten...</div>
+            </div>
+            <div class="card">
+                <h2>Geschwindigkeit</h2>
+                <p id="val-speed">0.0 <span style="font-size:12px;">km/h</span></p>
+                <div class="sub-val" id="val-speed-avg" style="color: #fff;">Ø: 0.0 km/h</div>
+            </div>
+            <div class="card" style="grid-column: span 2;">
+                <h2>Gesamte Distanz</h2>
+                <p id="val-distanz">0.00 <span style="font-size:12px;">km</span></p>
+            </div>
+        </div>
+
+        <div class="history-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 10px;">
+                <h3 style="margin: 0; color: #00e676; font-size: 16px;">📋 Deine Workout Historie</h3>
+                <button id="btn-export" onclick="exportToCSV()">Als CSV exportieren</button>
+            </div>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Dauer</th>
+                        <th>Distanz</th>
+                        <th>kcal</th>
+                        <th>Max HF</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://jlmwmrpfegaanfildeop.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsbXdtcnBmZWdhYW5maWxkZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MzgxMjIsImV4cCI6MjA5NzExNDEyMn0.8QaxLec0GXCBw-EoOBAT8Zy5tQfcaLVs-Ny2TlEqT1o";
+        
+        let supabase = null;
+        let currentUser = null;
+        let useLocalStorageBackup = false;
+        let cachedWorkouts = [];
+
+        const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
+        const CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
+
+        let bluetoothGeraet = null;
+        let bleCharakteristik = null;
+        let amLaufen = false;
+
+        let pulsListe = [];
+        let speedListe = [];
+        let atmungListe = [];
+        let maxPuls = 0;
+        let totalKcal = 0;
+        let startTimeStamp = null;
+        let recoveryTimer = null;
+        let finalDistance = 0;
+
+        let ekgChart, atemChart;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Diagramme initialisieren
+            const ctxEkg = document.getElementById('ekgChart').getContext('2d');
+            ekgChart = new Chart(ctxEkg, {
+                type: 'line',
+                data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(null), borderColor: '#00e676', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                options: { responsive: true, animation: false, scales: { y: { min: 40, max: 200, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+
+            const ctxAtem = document.getElementById('atemChart').getContext('2d');
+            atemChart = new Chart(ctxAtem, {
+                type: 'line',
+                data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(null), borderColor: '#00d2ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
+                // Anonymen Login testen mit automatischem Timeout-Schutz
+                const { data: sessionData, error: sErr } = await supabase.auth.getSession();
+                let session = sessionData ? sessionData.session : null;
+
+                if (!session) {
+                    const { data: signInData, error } = await supabase.auth.signInAnonymously();
+                    if (error) { throw new Error("Supabase blockiert anonyme Konten."); }
+                    session = signInData.session;
+                }
+
+                currentUser = session.user;
+                document.getElementById('account-type-text').innerText = "Modus: Anonymer Cloud-Speicher aktiv";
+                loadUserProfileAndHistory();
+
+            } catch (err) {
+                console.warn("Wechsle auf lokales Speicher-Backup:", err);
+                useLocalStorageBackup = true;
+                document.getElementById('account-type-text').innerText = "Modus: Sicherer Offline-Speicher (Browser)";
+                updateHistoryTable();
+            } finally {
+                // EGAL WAS PASSIERT: Ladebildschirm jetzt entfernen und Dashboard freigeben!
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('main-dashboard').style.display = 'block';
+            }
+        });
+
+        async function loadUserProfileAndHistory() {
+            // Lokale Profildaten laden, falls vorhanden
+            const savedGender = localStorage.getItem('shirt_gender');
+            const savedAge = localStorage.getItem('shirt_age');
+            const savedWeight = localStorage.getItem('shirt_weight');
+            if(savedGender) document.getElementById('user-gender').value = savedGender;
+            if(savedAge) document.getElementById('user-age').value = savedAge;
+            if(savedWeight) document.getElementById('user-weight').value = savedWeight;
+
+            if (!useLocalStorageBackup && currentUser && supabase) {
+                try {
+                    const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+                    if (profile) {
+                        document.getElementById('user-age').value = profile.age;
+                        document.getElementById('user-weight').value = profile.weight;
+                        document.getElementById('user-gender').value = profile.gender;
+                    }
+                } catch(e){}
+            }
+            updateHistoryTable();
+        }
+
+        async function saveUserProfile() {
+            const age = parseInt(document.getElementById('user-age').value);
+            const weight = parseInt(document.getElementById('user-weight').value);
+            const gender = document.getElementById('user-gender').value;
+
+            localStorage.setItem('shirt_gender', gender);
+            localStorage.setItem('shirt_age', age);
+            localStorage.setItem('shirt_weight', weight);
+
+            if (!useLocalStorageBackup && currentUser && supabase) {
+                await supabase.from('profiles').upsert({ id: currentUser.id, age: age, weight: weight, gender: gender });
+            }
+            alert("Daten erfolgreich gemerkt!");
+        }
+
+        function toggleSettings() {
+            const content = document.getElementById('settings-content');
+            const arrow = document.getElementById('settings-arrow');
+            if(content.style.display === 'block') { content.style.display = 'none'; arrow.innerText = '▼'; }
+            else { content.style.display = 'block'; arrow.innerText = '▲'; }
+        }
+
+        // --- BLUETOOTH SYSTEM ---
+        async function verbinden() {
+            const statusText = document.getElementById('status');
+            statusText.innerText = "Suche nach Geräten...";
+            try {
+                bluetoothGeraet = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE_UUID] });
+                statusText.innerText = "Verbinde...";
+                const server = await bluetoothGeraet.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                bleCharakteristik = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                await bleCharakteristik.startNotifications();
+                bleCharakteristik.addEventListener('characteristicvaluechanged', datenEmpfangen);
+
+                statusText.innerText = amLaufen ? "Wieder verbunden! Workout läuft..." : "Erfolgreich verbunden!";
+                statusText.style.color = "#00e676";
+                
+                document.getElementById('btn-connect').style.display = 'none';
+                document.getElementById('btn-start').style.display = amLaufen ? 'none' : 'inline-block';
+                document.getElementById('btn-stopp').style.display = 'inline-block';
+                bluetoothGeraet.addEventListener('gattserverdisconnected', onDisconnected);
+            } catch (error) {
+                statusText.innerText = "Verbindung fehlgeschlagen."; statusText.style.color = "#ff1744";
+            }
+        }
+
+        function datenEmpfangen(event) {
+            const value = event.target.value;
+            if (value.byteLength < 5) return;
+
+            const typ = value.getUint8(0);
+            const puls = value.getUint8(1);
+            const speed = value.getUint8(2);
+            const distanzRaw = value.getUint8(3);
+            const atmung = value.getUint8(4);
+            finalDistance = distanzRaw / 10;
+
+            if(typ === 0x99) {
+                document.getElementById('status').innerText = "Synchronisiere Daten aus Flash...";
+                document.getElementById('status').style.color = "#ffaa00";
+            }
+
+            const pulsCard = document.getElementById('card-puls');
+            pulsCard.className = "card"; 
+            if (puls > 0) {
+                pulsListe.push(puls);
+                if (puls > maxPuls) maxPuls = puls;
+                
+                if(puls >= 110 && puls <= 130) pulsCard.classList.add('zone-fatburn');
+                else if(puls > 130 && puls <= 160) pulsCard.classList.add('zone-cardio');
+                else if(puls > 160) pulsCard.classList.add('zone-peak');
+
+                if (ekgChart) {
+                    ekgChart.data.datasets[0].data.shift();
+                    ekgChart.data.datasets[0].data.push(puls);
+                    ekgChart.update();
+                }
+
+                const gender = document.getElementById('user-gender').value;
+                const age = parseFloat(document.getElementById('user-age').value) || 25;
+                const weight = parseFloat(document.getElementById('user-weight').value) || 75;
+                let kcalPerMinute = 0;
+
+                if (gender === 'male') {
+                    kcalPerMinute = (-55.0969 + (0.6309 * puls) + (0.1988 * weight) + (0.2017 * age)) / 4.184;
+                } else {
+                    kcalPerMinute = (-20.4022 + (0.4472 * puls) - (0.1263 * weight) + (0.074 * age)) / 4.184;
+                }
+                if(kcalPerMinute > 0) totalKcal += (kcalPerMinute / 60); 
+            }
+
+            if (atmung > 0) {
+                atmungListe.push(atmung);
+                if (atemChart) {
+                    atemChart.data.datasets[0].data.shift();
+                    atemChart.data.datasets[0].data.push(atmung);
+                    atemChart.update();
+                }
+            }
+            if (speed > 0 || amLaufen) {
+                speedListe.push(speed);
+            }
+
+            const avgPuls = pulsListe.length > 0 ? Math.round(pulsListe.reduce((a, b) => a + b) / pulsListe.length) : "--";
+            const avgSpeed = speedListe.length > 0 ? (speedListe.reduce((a, b) => a + b) / speedListe.length).toFixed(1) : "0.0";
+            const avgAtmung = atmungListe.length > 0 ? Math.round(atmungListe.reduce((a, b) => a + b) / atmungListe.length) : "--";
+
+            document.getElementById('val-puls').innerText = puls > 0 ? puls : "--";
+            document.getElementById('val-puls-stats').innerText = `Ø: ${avgPuls} | Max: ${maxPuls}`;
+            document.getElementById('val-atmung').innerText = atmung > 0 ? atmung : "--";
+            document.getElementById('val-atmung-stats').innerText = `Ø: ${avgAtmung} BRM`;
+            document.getElementById('val-kcal').innerHTML = `${Math.round(totalKcal)} <span style="font-size:12px;">kcal</span>`;
+            document.getElementById('val-speed').innerHTML = `${speed.toFixed(1)} <span style="font-size:12px;">km/h</span>`;
+            document.getElementById('val-speed-avg').innerText = `Ø: ${avgSpeed} km/h`;
+            document.getElementById('val-distanz').innerHTML = `${finalDistance.toFixed(2)} <span style="font-size:12px;">km</span>`;
+            
+            if(typ === 0x99) {
+                setTimeout(() => {
+                    document.getElementById('status').innerText = "Synchronisation abgeschlossen.";
+                    document.getElementById('status').style.color = "#00e676";
+                    document.getElementById('btn-save').style.display = 'inline-block'; 
+                }, 1000);
+            }
+        }
+
+        async function sendeBefehl(wert) {
+            const statusText = document.getElementById('status');
+            if (wert === 0 && !bleCharakteristik) {
+                statusText.innerText = "Bitte erst wieder KOPPELN!"; statusText.style.color = "#ff1744";
+                document.getElementById('btn-connect').style.display = 'inline-block';
+                return;
+            }
+            if (!bleCharakteristik) return;
+
+            try {
+                const datenBefehl = new Uint8Array([wert]);
+                await bleCharakteristik.writeValue(datenBefehl);
+                
+                if (wert === 1) {
+                    amLaufen = true;
+                    startTimeStamp = new Date();
+                    pulsListe = []; speedListe = []; atmungListe = []; maxPuls = 0; totalKcal = 0; finalDistance = 0;
+                    document.getElementById('val-recovery').innerText = "Erholung: Training läuft...";
+                    statusText.innerText = "Training läuft...";
+                    document.getElementById('btn-start').style.display = 'none';
+                    document.getElementById('btn-stopp').style.display = 'inline-block';
+                    document.getElementById('btn-save').style.display = 'none';
+                } else {
+                    amLaufen = false;
+                    statusText.innerText = "Training gestoppt.";
+                    document.getElementById('btn-start').style.display = 'inline-block';
+                    document.getElementById('btn-stopp').style.display = 'none';
+                    document.getElementById('btn-connect').style.display = 'inline-block';
+                    document.getElementById('btn-save').style.display = 'inline-block'; 
+                    
+                    const pulsBeimStopp = pulsListe.length > 0 ? pulsListe[pulsListe.length - 1] : 0;
+                    document.getElementById('val-recovery').innerText = "Erholung: Messe (60s)...";
+                    
+                    if(recoveryTimer) clearTimeout(recoveryTimer);
+                    recoveryTimer = setTimeout(() => {
+                        const pulsNachEinerMinute = pulsListe.length > 0 ? pulsListe[pulsListe.length - 1] : 0;
+                        const drop = pulsBeimStopp - pulsNachEinerMinute;
+                        if(pulsBeimStopp > 0 && drop >= 0) {
+                            document.getElementById('val-recovery').innerHTML = `Erholung: <b>-${drop} BPM</b> in 1 Min`;
+                        }
+                    }, 60000); 
+                }
+            } catch (error) { console.error("Fehler", error); }
+        }
+
+        function onDisconnected() {
+            document.getElementById('status').innerText = "Verbindung weg (Autarker Modus).";
+            document.getElementById('status').style.color = "#ffaa00";
+            document.getElementById('btn-connect').style.display = 'inline-block';
+            bleCharakteristik = null;
+        }
+
+        // ========================================================
+        // SPEICHER LOGIK (CLOUD ODER LOCALSTORAGE)
+        // ========================================================
+        async function saveWorkoutToCloud() {
+            if (!startTimeStamp) return;
+
+            const endTimeStamp = new Date();
+            const dauerSekunden = Math.round((endTimeStamp - startTimeStamp) / 1000);
+            const hrs = Math.floor(dauerSekunden / 3600);
+            const mins = Math.floor((dauerSekunden % 3600) / 60);
+            const secs = dauerSekunden % 60;
+            const dauerString = `${hrs > 0 ? hrs + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            const datumString = startTimeStamp.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            const newWorkout = {
+                id: Date.now(),
+                datum: datumString,
+                dauer: dauerString,
+                distanz: finalDistance.toFixed(2) + " km",
+                kcal: Math.round(totalKcal),
+                max_puls: maxPuls > 0 ? maxPuls + " BPM" : "--"
+            };
+
+            if (useLocalStorageBackup) {
+                let localData = JSON.parse(localStorage.getItem('shirt_workouts') || '[]');
+                localData.unshift(newWorkout);
+                localStorage.setItem('shirt_workouts', JSON.stringify(localData));
+                updateHistoryTable();
+                document.getElementById('btn-save').style.display = 'none';
+                alert("Workout lokal auf deinem Handy gesichert!");
+            } else {
+                const { error } = await supabase.from('workouts').insert([{ 
+                    user_id: currentUser.id, datum: datumString, dauer: dauerString, distanz: newWorkout.distanz, kcal: newWorkout.kcal, max_puls: newWorkout.max_puls
+                }]);
+
+                if (error) {
+                    alert("Cloud-Fehler. Speichere stattdessen lokal.");
+                    useLocalStorageBackup = true;
+                    saveWorkoutToCloud();
+                } else {
+                    updateHistoryTable();
+                    document.getElementById('btn-save').style.display = 'none';
+                    alert("Workout sicher in der Cloud gespeichert!");
+                }
+            }
+        }
+
+        async function updateHistoryTable() {
+            const tbody = document.getElementById('history-tbody');
+            tbody.innerHTML = "";
+
+            if (useLocalStorageBackup) {
+                cachedWorkouts = JSON.parse(localStorage.getItem('shirt_workouts') || '[]');
+            } else if (currentUser && supabase) {
+                const { data, error } = await supabase.from('workouts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+                if (!error && data) cachedWorkouts = data;
+            }
+
+            if (cachedWorkouts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#555; padding: 20px;">Noch keine Workouts gesichert.</td></tr>`;
+                return;
+            }
+
+            cachedWorkouts.forEach(workout => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${workout.datum}</td>
+                    <td>${workout.dauer}</td>
+                    <td>${workout.distanz}</td>
+                    <td style="color:#ff9100; font-weight:bold;">${workout.kcal}</td>
+                    <td>${workout.max_puls}</td>
+                    <td><button class="btn-delete" onclick="deleteWorkout(${workout.id})">×</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function deleteWorkout(id) {
+            if(confirm("Workout wirklich löschen?")) {
+                if (useLocalStorageBackup) {
+                    let localData = JSON.parse(localStorage.getItem('shirt_workouts') || '[]');
+                    localData = localData.filter(w => w.id !== id);
+                    localStorage.setItem('shirt_workouts', JSON.stringify(localData));
+                    updateHistoryTable();
+                } else if (supabase) {
+                    // id ist bei Supabase die Tabellen-ID
+                    await supabase.from('workouts').delete().eq('id', id);
+                    updateHistoryTable();
+                }
+            }
+        }
+
+        function exportToCSV() {
+            if (cachedWorkouts.length === 0) { alert("Keine Workouts vorhanden!"); return; }
+            let csvContent = "data:text/csv;charset=utf-8,Datum;Dauer;Distanz;Kalorien(kcal);Max_Puls\n";
+            cachedWorkouts.forEach(w => { csvContent += `${w.datum};${w.dauer};${w.distanz};${w.kcal};${w.max_puls}\n`; });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "smartshirt_workouts.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
