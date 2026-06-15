@@ -50,25 +50,21 @@
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
             max-width: 500px; margin: 15px auto; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-
-        /* STYLING FÜR DAS GENERIERTE PDF (PRINT-LAYOUT) */
-        @media print {
-            body { background: white !important; color: black !important; padding: 20px; }
-            #main-dashboard { display: none !important; }
-            #pdf-layout { display: block !important; }
-        }
         
+        /* MODERNES EXTRA-STYLING FÜR DEN GENERIERTEN DIGITAL-REPORT */
         #pdf-layout {
             display: none; background: #ffffff; color: #000000; text-align: left;
-            max-width: 600px; margin: 20px auto; padding: 25px;
+            max-width: 500px; margin: 0 auto; padding: 25px; border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
-        .pdf-header { border-bottom: 3px solid #00e676; padding-bottom: 10px; margin-bottom: 20px; }
+        .pdf-header { border-bottom: 3px solid #00e676; padding-bottom: 12px; margin-bottom: 20px; }
         .pdf-title { font-size: 26px; font-weight: bold; margin: 0; color: #111; }
-        .pdf-meta { font-size: 12px; color: #666; margin-top: 5px; }
-        .pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-        .pdf-card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: #f9f9f9; }
-        .pdf-card h3 { margin: 0; font-size: 12px; color: #666; text-transform: uppercase; }
-        .pdf-card p { margin: 5px 0 0 0; font-size: 22px; font-weight: bold; color: #000; }
+        .pdf-meta { font-size: 13px; color: #555; margin-top: 6px; font-weight: 500; }
+        .pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .pdf-card { border: 1px solid #e0e0e0; padding: 14px; border-radius: 10px; background: #f8f9fa; }
+        .pdf-card h3 { margin: 0; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .pdf-card p { margin: 6px 0 0 0; font-size: 20px; font-weight: bold; color: #000; }
+        .btn-back { background-color: #333; color: white; padding: 12px; border-radius: 8px; border: none; font-weight: bold; width: 100%; margin-top: 25px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -104,7 +100,7 @@
             <div class="export-content" style="display: block;">
                 <label>Workout-Name:</label>
                 <input type="text" id="pdf-filename-input" value="Workout"><br>
-                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor(); window.print();">Jetzt PDF erzeugen & öffnen</button>
+                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor()">Jetzt Report erzeugen</button>
             </div>
         </div>
 
@@ -158,6 +154,7 @@
             <div class="pdf-card"><h3>Durchschnitts-Atmung</h3><p id="pdf-avg-atmung">--</p></div>
         </div>
         <p style="font-size:11px; color:#666; margin-top:25px; text-align:center;">Generiert mit der Smartshirt-Tracker App</p>
+        <button class="btn-back" onclick="schliesseReport()">← Zurück zum Tracker</button>
     </div>
 
     <script>
@@ -300,11 +297,11 @@
         function onDisconnected() { document.getElementById('status').innerText = "Verbindung getrennt."; bleCharakteristik = null; }
 
         // ========================================================
-        // STUFE 1: DATEN VORBEREITEN (PASSIERT DIREKT BEIM KLICK)
+        // EXPORT-FIX FÜR BLUEFY: ANZEIGE DES DIGITALEN REPORTS
         // ========================================================
         function bereitePDFVor() {
             if (!startTimeStamp) { 
-                startTimeStamp = new Date(Date.now() - 30 * 60000); // Fallback für Trockentests
+                startTimeStamp = new Date(Date.now() - 30 * 60000); // 30 Min Fallback für Trockentest
             }
 
             let dateiNameVomNutzer = document.getElementById('pdf-filename-input').value.trim();
@@ -322,9 +319,10 @@
             const ageText = document.getElementById('user-age').value;
             const weightText = document.getElementById('user-weight').value;
 
+            // Befüllen der Report-Felder
             document.getElementById('pdf-workout-name').innerText = dateiNameVomNutzer;
             document.getElementById('pdf-datum').innerText = "Datum / Uhrzeit: " + datumString;
-            document.getElementById('pdf-profil').innerText = `Profilwerte beim Export: ${genderText}, ${ageText} Jahre, ${weightText} kg`;
+            document.getElementById('pdf-profil').innerText = `Profilwerte: ${genderText}, ${ageText} J., ${weightText} kg`;
             
             document.getElementById('pdf-dauer').innerText = dauerString;
             document.getElementById('pdf-kcal').innerText = Math.round(totalKcal) + " kcal";
@@ -333,8 +331,16 @@
             document.getElementById('pdf-distanz').innerText = finalDistance.toFixed(2) + " km";
             document.getElementById('pdf-avg-atmung').innerText = atmungListe.length > 0 ? Math.round(atmungListe.reduce((a, b) => a + b) / atmungListe.length) + " BRM" : "--";
 
-            // Ändert den Dateinamen für das iOS-Druckmenü
-            document.title = dateiNameVomNutzer;
+            // Umschalten der Ansicht (Dashboard weg, schicker Report her)
+            document.getElementById('main-dashboard').style.display = 'none';
+            document.getElementById('pdf-layout').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        function schliesseReport() {
+            // Zurück zum Live-Dashboard
+            document.getElementById('pdf-layout').style.display = 'none';
+            document.getElementById('main-dashboard').style.display = 'block';
         }
     </script>
 </body>
