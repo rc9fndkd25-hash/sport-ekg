@@ -15,26 +15,31 @@
         .btn {
             background-color: #333; color: white; border: none; padding: 15px 25px;
             font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer;
-            margin: 10px; width: 85%; max-width: 300px; transition: 0.2s;
+            margin: 10px auto; width: 85%; max-width: 300px; transition: 0.2s; display: block;
         }
-        #btn-connect { background-color: #007bff; }
+        #btn-connect { background-color: #007bff; display: inline-block; }
         #btn-start { background-color: #00e676; color: black; display: none; }
         #btn-stopp { background-color: #ff1744; display: none; }
         #btn-save { background-color: #ff9100; color: black; display: none; }
-        #btn-logout { background-color: #555; padding: 8px 15px; font-size: 12px; width: auto; margin-top: 5px; }
+        #btn-logout { background-color: #555; padding: 8px 15px; font-size: 12px; width: auto; margin-top: 5px; display: inline-block; }
         #status { color: #ffaa00; font-weight: bold; margin-top: 10px; font-size: 14px; }
         
         /* LOGIN & REGISTRIERUNGS SCREEN */
         .auth-container {
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
             max-width: 400px; margin: 50px auto; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-sizing: border-box;
         }
         .auth-container h2 { color: #00e676; margin-top: 0; font-size: 20px; }
         .auth-input {
             width: 90%; background: #333; color: white; border: 1px solid #555; 
-            padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;
+            padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;
+            box-sizing: border-box; display: inline-block;
         }
-        .auth-switch { color: #007bff; cursor: pointer; font-size: 13px; text-decoration: underline; margin-top: 10px; display: block; }
+        .auth-switch { 
+            color: #007bff; cursor: pointer; font-size: 14px; text-decoration: underline; 
+            margin-top: 20px; display: block; padding: 10px; position: relative; z-index: 10;
+        }
 
         /* DASHBOARD (wird nach Login sichtbar) */
         #main-dashboard { display: none; }
@@ -121,7 +126,9 @@
             </div>
         </div>
 
-        <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
+        <div style="text-align: center; margin-top: 15px;">
+            <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
+        </div>
         <div>
             <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
             <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
@@ -181,7 +188,7 @@
 
     <script>
         // ========================================================
-        // CONF-BEREICH: KORRIGIERTE URL (OHNE /rest/v1/) & RICHTIGER KEY
+        // CONF-BEREICH
         // ========================================================
         const SUPABASE_URL = "https://jlmwmrpfegaanfildeop.supabase.co"; 
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsbXdtcnBmZWdhYW5maWxkZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MzgxMjIsImV4cCI6MjA5NzExNDEyMn0.8QaxLec0GXCBw-EoOBAT8Zy5tQfcaLVs-Ny2TlEqT1o";
@@ -209,10 +216,8 @@
 
         let ekgChart, atemChart;
 
-        // Warten, bis das gesamte Fenster mitsamt Supabase-Skript geladen ist
         window.addEventListener('DOMContentLoaded', () => {
             try {
-                // Supabase sicher starten
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
                 // Diagramme initialisieren
@@ -247,7 +252,6 @@
 
             } catch (err) {
                 console.error("Fehler beim Laden von Supabase:", err);
-                alert("Supabase-Verbindung fehlgeschlagen.");
             }
         });
 
@@ -260,12 +264,12 @@
         }
 
         async function handleAuth() {
-            if (!supabase) { alert("Datenbank-Verbindung wird noch aufgebaut..."); return; }
+            if (!supabase) { alert("Datenbank wird geladen..."); return; }
             
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
 
-            if (!email || !password) { alert("Bitte fülle alle Felder aus!"); return; }
+            if (!email || !password) { alert("Bitte E-Mail und Passwort ausfüllen!"); return; }
 
             if (isSignUpMode) {
                 const age = document.getElementById('reg-age').value;
@@ -275,7 +279,7 @@
                 if(!age || !weight) { alert("Bitte Alter und Gewicht für die kcal-Berechnung angeben!"); return; }
 
                 const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) { alert("Fehler bei Registrierung: " + error.message); return; }
+                if (error) { alert("Registrierung fehlgeschlagen: " + error.message); return; }
 
                 if (data.user) {
                     await supabase.from('profiles').insert([
@@ -284,8 +288,16 @@
                     alert("Konto erfolgreich erstellt! Du wirst jetzt eingeloggt.");
                 }
             } else {
+                // Login-Versuch mit Fehlermeldungs-Abfang
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) alert("Login fehlgeschlagen: " + error.message);
+                if (error) {
+                    // Schöne deutsche Übersetzung der häufigsten Supabase Fehler
+                    if (error.message.includes("Invalid login credentials")) {
+                        alert("❌ Login fehlgeschlagen: Dieses Konto existiert nicht oder das Passwort ist falsch!");
+                    } else {
+                        alert("❌ Fehler: " + error.message);
+                    }
+                }
             }
         }
 
