@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smartshirt-Tracker (iOS PDF Fix)</title>
+    <title>Smartshirt-Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             background-color: #121212; color: #ffffff; text-align: center; padding: 15px; margin: 0;
         }
-        h1 { color: #00e676; margin-bottom: 5px; font-size: 24px; }
-        .subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
+        h1 { color: #00e676; margin-bottom: 25px; font-size: 24px; }
         .btn {
             background-color: #333; color: white; border: none; padding: 15px 25px;
             font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer;
@@ -76,7 +75,6 @@
 
     <div id="main-dashboard">
         <h1>Smartshirt-Tracker</h1>
-        <div class="subtitle">Modus: iOS PDF-Print-Fix Edition</div>
 
         <div class="settings-container">
             <div class="settings-title" onclick="toggleSettings()">👤 Deine Kcal-Daten (Gewicht/Alter) <span id="settings-arrow">▼</span></div>
@@ -106,7 +104,7 @@
             <div class="export-content" style="display: block;">
                 <label>Workout-Name:</label>
                 <input type="text" id="pdf-filename-input" value="Workout"><br>
-                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="generierePDFReport()">Jetzt PDF erzeugen & öffnen</button>
+                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor(); window.print();">Jetzt PDF erzeugen & öffnen</button>
             </div>
         </div>
 
@@ -186,7 +184,6 @@
                 options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
             });
 
-            // Setze Standard-Dateiname mit Datum
             document.getElementById('pdf-filename-input').value = "Workout_" + new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
 
             if(localStorage.getItem('shirt_gender')) document.getElementById('user-gender').value = localStorage.getItem('shirt_gender');
@@ -273,11 +270,6 @@
             document.getElementById('val-speed').innerHTML = `${speed.toFixed(1)} <span style="font-size:12px;">km/h</span>`;
             document.getElementById('val-speed-avg').innerText = `Ø: ${avgSpeed} km/h`;
             document.getElementById('val-distanz').innerHTML = `${finalDistance.toFixed(2)} <span style="font-size:12px;">km</span>`;
-            
-            if(typ === 0x99) {
-                document.getElementById('status').innerText = "Synchronisation abgeschlossen.";
-                document.getElementById('btn-save').style.display = 'inline-block'; 
-            }
         }
 
         async function sendeBefehl(wert) {
@@ -308,12 +300,11 @@
         function onDisconnected() { document.getElementById('status').innerText = "Verbindung getrennt."; bleCharakteristik = null; }
 
         // ========================================================
-        // DIREKTER EXPORT (OHNE PROMPT-SPERRUNG)
+        // STUFE 1: DATEN VORBEREITEN (PASSIERT DIREKT BEIM KLICK)
         // ========================================================
-        function generierePDFReport() {
+        function bereitePDFVor() {
             if (!startTimeStamp) { 
-                // Temp-Fallback falls du ohne echtes Bluetooth-Signal testen willst
-                startTimeStamp = new Date(Date.now() - 45 * 60000); 
+                startTimeStamp = new Date(Date.now() - 30 * 60000); // Fallback für Trockentests
             }
 
             let dateiNameVomNutzer = document.getElementById('pdf-filename-input').value.trim();
@@ -331,7 +322,6 @@
             const ageText = document.getElementById('user-age').value;
             const weightText = document.getElementById('user-weight').value;
 
-            // Werte in das PDF-Druck-Layout einpflegen
             document.getElementById('pdf-workout-name').innerText = dateiNameVomNutzer;
             document.getElementById('pdf-datum').innerText = "Datum / Uhrzeit: " + datumString;
             document.getElementById('pdf-profil').innerText = `Profilwerte beim Export: ${genderText}, ${ageText} Jahre, ${weightText} kg`;
@@ -343,15 +333,8 @@
             document.getElementById('pdf-distanz').innerText = finalDistance.toFixed(2) + " km";
             document.getElementById('pdf-avg-atmung').innerText = atmungListe.length > 0 ? Math.round(atmungListe.reduce((a, b) => a + b) / atmungListe.length) + " BRM" : "--";
 
-            // Den Browsertitel ändern, damit Safari das PDF automatisch so benennt!
-            const alterTitel = document.title;
+            // Ändert den Dateinamen für das iOS-Druckmenü
             document.title = dateiNameVomNutzer;
-
-            // Der direkte Aufruf triggert nun sauber das iOS Systemmenü
-            window.print();
-
-            // Titel wiederherstellen
-            document.title = alterTitel;
         }
     </script>
 </body>
