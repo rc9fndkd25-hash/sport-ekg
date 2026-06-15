@@ -181,11 +181,13 @@
 
     <script>
         // ========================================================
-        // CONF-BEREICH: DEINE DYNAMISCHEN SUPABASE CREDENTIALS
+        // CONF-BEREICH: CREDENTIALS SIND JETZT AKTIV
         // ========================================================
         const SUPABASE_URL = "https://jlmwmrpfegaanfildeop.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_Cx2HLAdpnqU21xdJrxOSmw_m8rdMAnK";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let supabase = null;
+        let currentUser = null;
 
         const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
@@ -193,7 +195,6 @@
         let bluetoothGeraet = null;
         let bleCharakteristik = null;
         let amLaufen = false;
-        let currentUser = null;
 
         let pulsListe = [];
         let speedListe = [];
@@ -206,32 +207,47 @@
         let finalDistance = 0;
         let isSignUpMode = false;
 
-        // Diagramme initialisieren
-        const ctxEkg = document.getElementById('ekgChart').getContext('2d');
-        const ekgChart = new Chart(ctxEkg, {
-            type: 'line',
-            data: { labels: Array(30).fill(''), datasets: [{ label: 'EKG Verlauf', data: Array(30).fill(null), borderColor: '#00e676', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
-            options: { responsive: true, animation: false, scales: { y: { min: 40, max: 200, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
-        });
+        let ekgChart, atemChart;
 
-        const ctxAtem = document.getElementById('atemChart').getContext('2d');
-        const atemChart = new Chart(ctxAtem, {
-            type: 'line',
-            data: { labels: Array(30).fill(''), datasets: [{ label: 'Atemfrequenz', data: Array(30).fill(null), borderColor: '#00d2ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
-            options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
-        });
+        // WICHTIG: Warten, bis das gesamte Fenster geladen ist (inkl. Supabase-Skript)
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Supabase sicher initialisieren
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Automatisch prüfen, ob der User bereits eingeloggt ist
-        supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-                currentUser = session.user;
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('main-dashboard').style.display = 'block';
-                document.getElementById('user-display-email').innerText = currentUser.email;
-                loadUserProfileAndHistory();
-            } else {
-                document.getElementById('auth-screen').style.display = 'block';
-                document.getElementById('main-dashboard').style.display = 'none';
+                // Diagramme initialisieren
+                const ctxEkg = document.getElementById('ekgChart').getContext('2d');
+                ekgChart = new Chart(ctxEkg, {
+                    type: 'line',
+                    data: { labels: Array(30).fill(''), datasets: [{ label: 'EKG Verlauf', data: Array(30).fill(null), borderColor: '#00e676', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                    options: { responsive: true, animation: false, scales: { y: { min: 40, max: 200, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+                });
+
+                const ctxAtem = document.getElementById('atemChart').getContext('2d');
+                atemChart = new Chart(ctxAtem, {
+                    type: 'line',
+                    data: { labels: Array(30).fill(''), datasets: [{ label: 'Atemfrequenz', data: Array(30).fill(null), borderColor: '#00d2ff', borderWidth: 2, pointRadius: 0, tension: 0.3 }] },
+                    options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+                });
+
+                // Authentifizierungs-Status überwachen
+                supabase.auth.onAuthStateChange((event, session) => {
+                    if (session) {
+                        currentUser = session.user;
+                        document.getElementById('auth-screen').style.display = 'none';
+                        document.getElementById('main-dashboard').style.display = 'block';
+                        document.getElementById('user-display-email').innerText = currentUser.email;
+                        loadUserProfileAndHistory();
+                    } else {
+                        currentUser = null;
+                        document.getElementById('auth-screen').style.display = 'block';
+                        document.getElementById('main-dashboard').style.display = 'none';
+                    }
+                });
+
+            } catch (err) {
+                console.error("Fehler beim Laden von Supabase:", err);
+                alert("Supabase konnte nicht geladen werden. Überprüfe deine Internetverbindung.");
             }
         });
 
@@ -244,6 +260,8 @@
         }
 
         async function handleAuth() {
+            if (!supabase) { alert("Datenbank-Verbindung wird noch aufgebaut..."); return; }
+            
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
 
@@ -256,32 +274,28 @@
 
                 if(!age || !weight) { alert("Bitte Alter und Gewicht für die kcal-Berechnung angeben!"); return; }
 
-                // 1. In Supabase Auth registrieren
                 const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) { alert("Fehler: " + error.message); return; }
+                if (error) { alert("Fehler bei Registrierung: " + error.message); return; }
 
                 if (data.user) {
-                    // 2. Benutzer-Profilwerte in der Datenbank ablegen
                     await supabase.from('profiles').insert([
                         { id: data.user.id, age: parseInt(age), weight: parseInt(weight), gender: gender }
                     ]);
-                    alert("Registrierung erfolgreich! Du wirst nun eingeloggt.");
+                    alert("Konto erfolgreich erstellt! Du wirst jetzt eingeloggt.");
                 }
             } else {
-                // Login durchführen
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) alert("Login fehlgeschlagen: " + error.message);
             }
         }
 
         async function logout() {
-            await supabase.auth.signOut();
+            if (supabase) await supabase.auth.signOut();
         }
 
         async function loadUserProfileAndHistory() {
-            if (!currentUser) return;
+            if (!currentUser || !supabase) return;
 
-            // Profil laden (für Kalorien-Formel)
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
             if (profile) {
                 document.getElementById('user-age').value = profile.age;
@@ -350,9 +364,11 @@
                 else if(puls > 130 && puls <= 160) pulsCard.classList.add('zone-cardio');
                 else if(puls > 160) pulsCard.classList.add('zone-peak');
 
-                ekgChart.data.datasets[0].data.shift();
-                ekgChart.data.datasets[0].data.push(puls);
-                ekgChart.update();
+                if (ekgChart) {
+                    ekgChart.data.datasets[0].data.shift();
+                    ekgChart.data.datasets[0].data.push(puls);
+                    ekgChart.update();
+                }
 
                 const gender = document.getElementById('user-gender').value;
                 const age = parseFloat(document.getElementById('user-age').value) || 25;
@@ -369,9 +385,11 @@
 
             if (atmung > 0) {
                 atmungListe.push(atmung);
-                atemChart.data.datasets[0].data.shift();
-                atemChart.data.datasets[0].data.push(atmung);
-                atemChart.update();
+                if (atemChart) {
+                    atemChart.data.datasets[0].data.shift();
+                    atemChart.data.datasets[0].data.push(atmung);
+                    atemChart.update();
+                }
             }
             if (speed > 0 || amLaufen) {
                 speedListe.push(speed);
@@ -455,7 +473,7 @@
         // CLOUD SPEICHER & HISTORIE LOGIK (SUPABASE)
         // ========================================================
         async function saveWorkoutToCloud() {
-            if (!startTimeStamp || !currentUser) return;
+            if (!startTimeStamp || !currentUser || !supabase) return;
 
             const endTimeStamp = new Date();
             const dauerSekunden = Math.round((endTimeStamp - startTimeStamp) / 1000);
@@ -466,7 +484,6 @@
 
             const datumString = startTimeStamp.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-            // In die Supabase-Datenbank einfügen
             const { error } = await supabase.from('workouts').insert([
                 { 
                     user_id: currentUser.id, 
@@ -491,9 +508,8 @@
             const tbody = document.getElementById('history-tbody');
             tbody.innerHTML = "";
 
-            if (!currentUser) return;
+            if (!currentUser || !supabase) return;
 
-            // Alle Workouts des aktuellen Nutzers aus der Cloud abrufen (Neueste zuerst)
             const { data: workouts, error } = await supabase.from('workouts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
 
             if (error || !workouts || workouts.length === 0) {
@@ -516,6 +532,7 @@
         }
 
         async function deleteWorkout(id) {
+            if (!supabase) return;
             if(confirm("Möchtest du dieses Workout wirklich aus der Cloud löschen?")) {
                 const { error } = await supabase.from('workouts').delete().eq('id', id);
                 if (!error) updateHistoryTable();
