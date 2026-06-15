@@ -181,10 +181,10 @@
 
     <script>
         // ========================================================
-        // CONF-BEREICH: CREDENTIALS SIND JETZT AKTIV
+        // CONF-BEREICH: NUN MIT DEM KORREKTEN ENORM LANGEN ANON-KEY
         // ========================================================
         const SUPABASE_URL = "https://jlmwmrpfegaanfildeop.supabase.co"; 
-        const SUPABASE_KEY = "sb_publishable_Cx2HLAdpnqU21xdJrxOSmw_m8rdMAnK";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsbXdtcnBmZWdhYW5maWxkZW9wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MzgxMjIsImV4cCI6MjA5NzExNDEyMn0.8QaxLec0GXCBw-EoOBAT8Zy5tQfcaLVs-Ny2TlEqT1o";
         
         let supabase = null;
         let currentUser = null;
@@ -209,10 +209,10 @@
 
         let ekgChart, atemChart;
 
-        // WICHTIG: Warten, bis das gesamte Fenster geladen ist (inkl. Supabase-Skript)
+        // Warten, bis das gesamte Fenster mitsamt Supabase-Skript geladen ist
         window.addEventListener('DOMContentLoaded', () => {
             try {
-                // Supabase sicher initialisieren
+                // Supabase sicher mit dem echten Anon-Key starten
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
                 // Diagramme initialisieren
@@ -247,7 +247,7 @@
 
             } catch (err) {
                 console.error("Fehler beim Laden von Supabase:", err);
-                alert("Supabase konnte nicht geladen werden. Überprüfe deine Internetverbindung.");
+                alert("Supabase-Verbindung fehlgeschlagen.");
             }
         });
 
