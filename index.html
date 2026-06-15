@@ -11,7 +11,8 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             background-color: #121212; color: #ffffff; text-align: center; padding: 15px; margin: 0;
         }
-        h1 { color: #00e676; margin-bottom: 20px; font-size: 24px; }
+        h1 { color: #00e676; margin-bottom: 5px; font-size: 24px; }
+        .subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
         .btn {
             background-color: #333; color: white; border: none; padding: 15px 25px;
             font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer;
@@ -21,38 +22,28 @@
         #btn-start { background-color: #00e676; color: black; display: none; }
         #btn-stopp { background-color: #ff1744; display: none; }
         #btn-save { background-color: #ff9100; color: black; display: none; }
-        #btn-logout { background-color: #555; padding: 8px 15px; font-size: 12px; width: auto; margin-top: 5px; display: inline-block; }
+        #btn-export { background-color: #555; color: white; display: inline-block; width: auto; padding: 8px 15px; font-size: 12px; margin-top: 5px; }
         #status { color: #ffaa00; font-weight: bold; margin-top: 10px; font-size: 14px; }
         
-        /* LOGIN & REGISTRIERUNGS SCREEN */
-        .auth-container {
-            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
-            max-width: 400px; margin: 50px auto; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            box-sizing: border-box;
-        }
-        .auth-container h2 { color: #00e676; margin-top: 0; font-size: 20px; }
-        .auth-input {
-            width: 90%; background: #333; color: white; border: 1px solid #555; 
-            padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;
-            box-sizing: border-box; display: inline-block;
-        }
-        .auth-switch { 
-            color: #007bff; cursor: pointer; font-size: 14px; text-decoration: underline; 
-            margin-top: 20px; display: block; padding: 10px; position: relative; z-index: 10;
+        /* Lade-Bildschirm beim Start */
+        #loading-screen {
+            background-color: #121212; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column;
         }
 
-        /* DASHBOARD (wird nach Login sichtbar) */
+        /* HAUPT-DASHBOARD */
         #main-dashboard { display: none; }
 
-        /* Profil-Einstellungen */
+        /* Profil-Einstellungen (Jetzt direkt editierbar, da kein fester Auth-Zwang mehr) */
         .settings-container {
             background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
             max-width: 500px; margin: 10px auto; padding: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .settings-title { font-weight: bold; color: #aaaaaa; cursor: pointer; display: flex; justify-content: space-between; font-size: 14px; }
         .settings-content { display: none; margin-top: 10px; }
-        .settings-content label { display: inline-block; width: 80px; font-size: 13px; margin-bottom: 5px; }
-        .settings-content input, .settings-content select { background: #333; color: white; border: 1px solid #555; padding: 5px; border-radius: 4px; margin-bottom: 5px; width: 80px; }
+        .settings-content label { display: inline-block; width: 100px; font-size: 13px; margin-bottom: 5px; }
+        .settings-content input, .settings-content select { background: #333; color: white; border: 1px solid #555; padding: 6px; border-radius: 4px; margin-bottom: 5px; width: 90px; }
+        .btn-update-profile { background-color: #00e676; color: black; border: none; padding: 5px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 5px; }
 
         .data-container {
             display: grid;
@@ -91,38 +82,26 @@
 </head>
 <body>
 
-    <div id="auth-screen" class="auth-container">
-        <h2 id="auth-title">Smartshirt Login</h2>
-        <input type="email" id="auth-email" class="auth-input" placeholder="E-Mail-Adresse">
-        <input type="password" id="auth-password" class="auth-input" placeholder="Passwort (min. 6 Zeichen)">
-        
-        <div id="reg-fields" style="display: none;">
-            <input type="number" id="reg-age" class="auth-input" placeholder="Alter (z.B. 25)">
-            <input type="number" id="reg-weight" class="auth-input" placeholder="Gewicht in kg (z.B. 75)">
-            <select id="reg-gender" class="auth-input">
-                <option value="male">Männlich</option>
-                <option value="female">Weiblich</option>
-            </select>
-        </div>
-
-        <button id="btn-auth-submit" class="btn" style="background-color: #00e676; color: black;" onclick="handleAuth()">Einloggen</button>
-        <span id="auth-toggle-text" class="auth-switch" onclick="toggleAuthMode()">Noch kein Konto? Registrieren</span>
+    <div id="loading-screen">
+        <h2 style="color: #00e676;">Smartshirt-Tracker</h2>
+        <p style="color: #aaa;" id="loading-text">Verbindung zur Cloud wird gesichert...</p>
     </div>
 
     <div id="main-dashboard">
         <h1>Smartshirt-Tracker</h1>
-        <div style="margin-bottom: 15px; font-size: 13px; color: #aaa;">
-            Eingeloggt als: <span id="user-display-email" style="color:#00e676;">--</span> <br>
-            <button id="btn-logout" class="btn" onclick="logout()">Ausloggen</button>
-        </div>
+        <div class="subtitle">Anonymer Cloud-Account aktiv (Kein Login nötig)</div>
 
         <div class="settings-container">
-            <div class="settings-title" onclick="toggleSettings()">👤 Dein Profil (wird aus Cloud geladen) <span id="settings-arrow">▼</span></div>
+            <div class="settings-title" onclick="toggleSettings()">👤 Deine Kcal-Daten (Optional) <span id="settings-arrow">▼</span></div>
             <div class="settings-content" id="settings-content">
-                <label>Geschlecht:</label> <select id="user-gender" disabled><option value="male">Männlich</option><option value="female">Weiblich</option></select><br>
-                <label>Alter:</label> <input type="number" id="user-age" readonly> Jahre<br>
-                <label>Gewicht:</label> <input type="number" id="user-weight" readonly> kg
-                <p style="font-size:11px; color:#777; margin: 5px 0 0 0;">Profiländerungen werden bei der Registrierung festgelegt.</p>
+                <label>Geschlecht:</label> 
+                <select id="user-gender">
+                    <option value="male">Männlich</option>
+                    <option value="female">Weiblich</option>
+                </select><br>
+                <label>Alter (Jahre):</label> <input type="number" id="user-age" value="25"><br>
+                <label>Gewicht (kg):</label> <input type="number" id="user-weight" value="75"><br>
+                <button class="btn-update-profile" onclick="saveUserProfile()">Daten für Kcal-Berechnung merken</button>
             </div>
         </div>
 
@@ -168,7 +147,10 @@
         </div>
 
         <div class="history-container">
-            <h3>📋 Deine Cloud Workout Historie</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 10px;">
+                <h3 style="margin: 0; color: #00e676; font-size: 16px;">📋 Deine Cloud Workout Historie</h3>
+                <button id="btn-export" onclick="exportToCSV()">Als CSV exportieren</button>
+            </div>
             <table class="history-table">
                 <thead>
                     <tr>
@@ -195,6 +177,7 @@
         
         let supabase = null;
         let currentUser = null;
+        let cachedWorkouts = []; // Für den CSV Export
 
         const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
@@ -212,11 +195,10 @@
         let startTimeStamp = null;
         let recoveryTimer = null;
         let finalDistance = 0;
-        let isSignUpMode = false;
 
         let ekgChart, atemChart;
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             try {
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -235,75 +217,32 @@
                     options: { responsive: true, animation: false, scales: { y: { min: 5, max: 50, grid: { color: '#333' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
                 });
 
-                // Authentifizierungs-Status überwachen
-                supabase.auth.onAuthStateChange((event, session) => {
-                    if (session) {
-                        currentUser = session.user;
-                        document.getElementById('auth-screen').style.display = 'none';
-                        document.getElementById('main-dashboard').style.display = 'block';
-                        document.getElementById('user-display-email').innerText = currentUser.email;
-                        loadUserProfileAndHistory();
-                    } else {
-                        currentUser = null;
-                        document.getElementById('auth-screen').style.display = 'block';
-                        document.getElementById('main-dashboard').style.display = 'none';
+                // AUTOMATISCHER ANONYMER LOGIN / ACCOUNT CHECK
+                const { data: sessionData } = await supabase.auth.getSession();
+                let session = sessionData.session;
+
+                if (!session) {
+                    document.getElementById('loading-text').innerText = "Erstelle sicheren anonymen Zugang...";
+                    const { data: signInData, error } = await supabase.auth.signInAnonymously();
+                    if (error) {
+                        alert("Fehler beim Erstellen des anonymen Kontos: " + error.message);
+                        return;
                     }
-                });
+                    session = signInData.session;
+                }
+
+                currentUser = session.user;
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('main-dashboard').style.display = 'block';
+                
+                // Profil & Historie laden
+                loadUserProfileAndHistory();
 
             } catch (err) {
-                console.error("Fehler beim Laden von Supabase:", err);
+                console.error("Fehler im System:", err);
+                document.getElementById('loading-text').innerText = "Fehler bei der Cloud-Verbindung.";
             }
         });
-
-        function toggleAuthMode() {
-            isSignUpMode = !isSignUpMode;
-            document.getElementById('auth-title').innerText = isSignUpMode ? "Konto erstellen" : "Smartshirt Login";
-            document.getElementById('reg-fields').style.display = isSignUpMode ? "block" : "none";
-            document.getElementById('btn-auth-submit').innerText = isSignUpMode ? "Registrieren" : "Einloggen";
-            document.getElementById('auth-toggle-text').innerText = isSignUpMode ? "Bereits ein Konto? Login" : "Noch kein Konto? Registrieren";
-        }
-
-        async function handleAuth() {
-            if (!supabase) { alert("Datenbank wird geladen..."); return; }
-            
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-
-            if (!email || !password) { alert("Bitte E-Mail und Passwort ausfüllen!"); return; }
-
-            if (isSignUpMode) {
-                const age = document.getElementById('reg-age').value;
-                const weight = document.getElementById('reg-weight').value;
-                const gender = document.getElementById('reg-gender').value;
-
-                if(!age || !weight) { alert("Bitte Alter und Gewicht für die kcal-Berechnung angeben!"); return; }
-
-                const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) { alert("Registrierung fehlgeschlagen: " + error.message); return; }
-
-                if (data.user) {
-                    await supabase.from('profiles').insert([
-                        { id: data.user.id, age: parseInt(age), weight: parseInt(weight), gender: gender }
-                    ]);
-                    alert("Konto erfolgreich erstellt! Du wirst jetzt eingeloggt.");
-                }
-            } else {
-                // Login-Versuch mit Fehlermeldungs-Abfang
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) {
-                    // Schöne deutsche Übersetzung der häufigsten Supabase Fehler
-                    if (error.message.includes("Invalid login credentials")) {
-                        alert("❌ Login fehlgeschlagen: Dieses Konto existiert nicht oder das Passwort ist falsch!");
-                    } else {
-                        alert("❌ Fehler: " + error.message);
-                    }
-                }
-            }
-        }
-
-        async function logout() {
-            if (supabase) await supabase.auth.signOut();
-        }
 
         async function loadUserProfileAndHistory() {
             if (!currentUser || !supabase) return;
@@ -315,6 +254,20 @@
                 document.getElementById('user-gender').value = profile.gender;
             }
             updateHistoryTable();
+        }
+
+        async function saveUserProfile() {
+            if (!currentUser || !supabase) return;
+            const age = parseInt(document.getElementById('user-age').value);
+            const weight = parseInt(document.getElementById('user-weight').value);
+            const gender = document.getElementById('user-gender').value;
+
+            const { error } = await supabase.from('profiles').upsert({
+                id: currentUser.id, age: age, weight: weight, gender: gender
+            });
+
+            if (error) alert("Fehler beim Profil-Speichern: " + error.message);
+            else alert("Kcal-Profil erfolgreich aktualisiert!");
         }
 
         function toggleSettings() {
@@ -526,8 +479,11 @@
 
             if (error || !workouts || workouts.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#555; padding: 20px;">Noch keine Workouts in der Cloud gesichert.</td></tr>`;
+                cachedWorkouts = [];
                 return;
             }
+
+            cachedWorkouts = workouts; // Speichern für CSV
 
             workouts.forEach(workout => {
                 const tr = document.createElement('tr');
@@ -549,6 +505,29 @@
                 const { error } = await supabase.from('workouts').delete().eq('id', id);
                 if (!error) updateHistoryTable();
             }
+        }
+
+        // --- METHODE 3 ERWEITERUNG: CSV DATEI DOWNLOAD ---
+        function exportToCSV() {
+            if (cachedWorkouts.length === 0) {
+                alert("Keine Workouts zum Exportieren vorhanden!");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Datum;Dauer;Distanz;Kalorien(kcal);Max_Puls\n"; // Header
+
+            cachedWorkouts.forEach(w => {
+                csvContent += `${w.datum};${w.dauer};${w.distanz};${w.kcal};${w.max_puls}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "smartshirt_workouts.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     </script>
 </body>
