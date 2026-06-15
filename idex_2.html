@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smartshirt-Tracker</title>
+    <title>Smartshirt-Tracker Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             background-color: #121212; color: #ffffff; text-align: center; padding: 15px; margin: 0;
+            -webkit-tap-highlight-color: transparent;
         }
         h1 { color: #00e676; margin-bottom: 25px; font-size: 24px; }
         .btn {
@@ -51,7 +52,7 @@
             max-width: 500px; margin: 15px auto; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         
-        /* MODERNES EXTRA-STYLING FÜR DEN GENERIERTEN DIGITAL-REPORT */
+        /* DESIGN-LAYOUT FÜR SCREENSHOTS UND HANDY-EXPORTE */
         #pdf-layout {
             display: none; background: #ffffff; color: #000000; text-align: left;
             max-width: 500px; margin: 0 auto; padding: 25px; border-radius: 16px;
@@ -87,24 +88,24 @@
         </div>
 
         <div style="text-align: center; margin-top: 15px;">
-            <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
+            <button id="btn-connect" class="btn" onclick="verbinden()">Smartshirt verbinden</button>
         </div>
         <div>
-            <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
-            <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
-            <button id="btn-save" class="btn" onclick="toggleExportBox()">📄 PDF Report erstellen</button>
+            <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Aufzeichnung)</button>
+            <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Beenden)</button>
+            <button id="btn-save" class="btn" onclick="toggleExportBox()">📄 Workout-Analyse abschließen</button>
         </div>
 
         <div class="export-container" id="export-box" style="display: none; border-color: #ff9100;">
-            <div class="export-title" style="color: #ff9100;">💾 Name für den PDF-Report festlegen</div>
+            <div class="export-title" style="color: #ff9100;">💾 Name für die Auswertung festlegen</div>
             <div class="export-content" style="display: block;">
                 <label>Workout-Name:</label>
                 <input type="text" id="pdf-filename-input" value="Workout"><br>
-                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor()">Jetzt Report erzeugen</button>
+                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor()">Analyse-Report generieren</button>
             </div>
         </div>
 
-        <p id="status">Status: Bereit</p>
+        <p id="status">Status: Bereit für dein Workout</p>
 
         <div class="chart-container"><canvas id="ekgChart" style="width:100%; height:130px;"></canvas></div>
         <div class="chart-container"><canvas id="atemChart" style="width:100%; height:130px;"></canvas></div>
@@ -209,7 +210,7 @@
 
         async function verbinden() {
             const statusText = document.getElementById('status');
-            statusText.innerText = "Suche nach Geräten...";
+            statusText.innerText = "Suche nach Smartshirt...";
             try {
                 bluetoothGeraet = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE_UUID] });
                 statusText.innerText = "Verbinde...";
@@ -218,7 +219,7 @@
                 bleCharakteristik = await service.getCharacteristic(CHARACTERISTIC_UUID);
                 await bleCharakteristik.startNotifications();
                 bleCharakteristik.addEventListener('characteristicvaluechanged', datenEmpfangen);
-                statusText.innerText = amLaufen ? "Wieder verbunden!" : "Erfolgreich verbunden!";
+                statusText.innerText = amLaufen ? "Verbindung wiederhergestellt!" : "Erfolgreich verbunden!";
                 statusText.style.color = "#00e676";
                 document.getElementById('btn-connect').style.display = 'none';
                 document.getElementById('btn-start').style.display = amLaufen ? 'none' : 'inline-block';
@@ -278,14 +279,14 @@
                 if (wert === 1) {
                     amLaufen = true; startTimeStamp = new Date();
                     pulsListe = []; speedListe = []; atmungListe = []; maxPuls = 0; totalKcal = 0; finalDistance = 0;
-                    document.getElementById('val-recovery').innerText = "Erholung: Training läuft...";
-                    statusText.innerText = "Training läuft...";
+                    document.getElementById('val-recovery').innerText = "Analyse läuft...";
+                    statusText.innerText = "Daten werden live analysiert...";
                     document.getElementById('btn-start').style.display = 'none';
                     document.getElementById('btn-stopp').style.display = 'inline-block';
                     document.getElementById('btn-save').style.display = 'none';
                     document.getElementById('export-box').style.display = 'none';
                 } else {
-                    amLaufen = false; statusText.innerText = "Training beendet.";
+                    amLaufen = false; statusText.innerText = "Training erfolgreich beendet.";
                     document.getElementById('btn-start').style.display = 'inline-block';
                     document.getElementById('btn-stopp').style.display = 'none';
                     document.getElementById('btn-connect').style.display = 'inline-block';
@@ -296,12 +297,9 @@
 
         function onDisconnected() { document.getElementById('status').innerText = "Verbindung getrennt."; bleCharakteristik = null; }
 
-        // ========================================================
-        // EXPORT-FIX FÜR BLUEFY: ANZEIGE DES DIGITALEN REPORTS
-        // ========================================================
         function bereitePDFVor() {
             if (!startTimeStamp) { 
-                startTimeStamp = new Date(Date.now() - 30 * 60000); // 30 Min Fallback für Trockentest
+                startTimeStamp = new Date(Date.now() - 30 * 60000);
             }
 
             let dateiNameVomNutzer = document.getElementById('pdf-filename-input').value.trim();
@@ -319,10 +317,9 @@
             const ageText = document.getElementById('user-age').value;
             const weightText = document.getElementById('user-weight').value;
 
-            // Befüllen der Report-Felder
             document.getElementById('pdf-workout-name').innerText = dateiNameVomNutzer;
-            document.getElementById('pdf-datum').innerText = "Datum / Uhrzeit: " + datumString;
-            document.getElementById('pdf-profil').innerText = `Profilwerte: ${genderText}, ${ageText} J., ${weightText} kg`;
+            document.getElementById('pdf-datum').innerText = "Zeitpunkt: " + datumString;
+            document.getElementById('pdf-profil').innerText = `Profil: ${genderText}, ${ageText} J., ${weightText} kg`;
             
             document.getElementById('pdf-dauer').innerText = dauerString;
             document.getElementById('pdf-kcal').innerText = Math.round(totalKcal) + " kcal";
@@ -331,14 +328,12 @@
             document.getElementById('pdf-distanz').innerText = finalDistance.toFixed(2) + " km";
             document.getElementById('pdf-avg-atmung').innerText = atmungListe.length > 0 ? Math.round(atmungListe.reduce((a, b) => a + b) / atmungListe.length) + " BRM" : "--";
 
-            // Umschalten der Ansicht (Dashboard weg, schicker Report her)
             document.getElementById('main-dashboard').style.display = 'none';
             document.getElementById('pdf-layout').style.display = 'block';
             window.scrollTo(0, 0);
         }
 
         function schliesseReport() {
-            // Zurück zum Live-Dashboard
             document.getElementById('pdf-layout').style.display = 'none';
             document.getElementById('main-dashboard').style.display = 'block';
         }
