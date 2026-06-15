@@ -181,10 +181,10 @@
 
     <script>
         // ========================================================
-        // CONF-BEREICH: HIER DIE SUPABASE CREDENTIALS EINTRAGEN!
+        // CONF-BEREICH: DEINE DYNAMISCHEN SUPABASE CREDENTIALS
         // ========================================================
-        const SUPABASE_URL = "DEIN_SUPABASE_PROJEKT_URL"; 
-        const SUPABASE_KEY = "DEIN_SUPABASE_ANON_KEY";
+        const SUPABASE_URL = "https://jlmwmrpfegaanfildeop.supabase.co"; 
+        const SUPABASE_KEY = "sb_publishable_Cx2HLAdpnqU21xdJrxOSmw_m8rdMAnK";
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
@@ -298,7 +298,7 @@
             else { content.style.display = 'block'; arrow.innerText = '▲'; }
         }
 
-        // --- AB HIER DEIN BEWÄHRTES BLUETOOTH SYSTEM ---
+        // --- BLUETOOTH SYSTEM ---
         async function verbinden() {
             const statusText = document.getElementById('status');
             statusText.innerText = "Suche nach Geräten...";
@@ -452,7 +452,7 @@
         }
 
         // ========================================================
-        // CLOUD SPEICHER & HISTORIE LOGIK (SUPABASE STATT LOCALSTORAGE)
+        // CLOUD SPEICHER & HISTORIE LOGIK (SUPABASE)
         // ========================================================
         async function saveWorkoutToCloud() {
             if (!startTimeStamp || !currentUser) return;
