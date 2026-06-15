@@ -4,104 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smartshirt-Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js">
-async function exportWorkoutPDF() {
-    bereitePDFVor();
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p","mm","a4");
-
-    const name = document.getElementById('pdf-workout-name').innerText;
-    const profil = document.getElementById('pdf-profil').innerText;
-    const datum = document.getElementById('pdf-datum').innerText;
-
-    pdf.setFontSize(20);
-    pdf.text(name,15,15);
-
-    pdf.setFontSize(10);
-    pdf.text(datum,15,22);
-    pdf.text(profil,15,28);
-
-    const avgSpeed = speedListe.length ?
-        (speedListe.reduce((a,b)=>a+b,0)/speedListe.length).toFixed(1)+" km/h" : "--";
-
-    const lines = [
-      "Dauer: " + document.getElementById('pdf-dauer').innerText,
-      "Kalorien: " + document.getElementById('pdf-kcal').innerText,
-      "Max Puls: " + document.getElementById('pdf-max-puls').innerText,
-      "Ø Puls: " + document.getElementById('pdf-avg-puls').innerText,
-      "Distanz: " + document.getElementById('pdf-distanz').innerText,
-      "Ø Atmung: " + document.getElementById('pdf-avg-atmung').innerText,
-      "Ø Geschwindigkeit: " + avgSpeed
-    ];
-
-    let y = 40;
-    lines.forEach(l => { pdf.text(l,15,y); y += 8; });
-
-    const ekgImg = ekgChart.canvas.toDataURL("image/png");
-    const atemImg = atemChart.canvas.toDataURL("image/png");
-
-    pdf.text("EKG",15,105);
-    pdf.addImage(ekgImg,"PNG",15,110,180,40);
-
-    pdf.text("Atmung",15,160);
-    pdf.addImage(atemImg,"PNG",15,165,180,40);
-
-    const fileName = document.getElementById('pdf-filename-input').value.trim() || "Workout";
-
-    pdf.save(fileName + ".pdf");
-}
-
-</script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">
-async function exportWorkoutPDF() {
-    bereitePDFVor();
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p","mm","a4");
-
-    const name = document.getElementById('pdf-workout-name').innerText;
-    const profil = document.getElementById('pdf-profil').innerText;
-    const datum = document.getElementById('pdf-datum').innerText;
-
-    pdf.setFontSize(20);
-    pdf.text(name,15,15);
-
-    pdf.setFontSize(10);
-    pdf.text(datum,15,22);
-    pdf.text(profil,15,28);
-
-    const avgSpeed = speedListe.length ?
-        (speedListe.reduce((a,b)=>a+b,0)/speedListe.length).toFixed(1)+" km/h" : "--";
-
-    const lines = [
-      "Dauer: " + document.getElementById('pdf-dauer').innerText,
-      "Kalorien: " + document.getElementById('pdf-kcal').innerText,
-      "Max Puls: " + document.getElementById('pdf-max-puls').innerText,
-      "Ø Puls: " + document.getElementById('pdf-avg-puls').innerText,
-      "Distanz: " + document.getElementById('pdf-distanz').innerText,
-      "Ø Atmung: " + document.getElementById('pdf-avg-atmung').innerText,
-      "Ø Geschwindigkeit: " + avgSpeed
-    ];
-
-    let y = 40;
-    lines.forEach(l => { pdf.text(l,15,y); y += 8; });
-
-    const ekgImg = ekgChart.canvas.toDataURL("image/png");
-    const atemImg = atemChart.canvas.toDataURL("image/png");
-
-    pdf.text("EKG",15,105);
-    pdf.addImage(ekgImg,"PNG",15,110,180,40);
-
-    pdf.text("Atmung",15,160);
-    pdf.addImage(atemImg,"PNG",15,165,180,40);
-
-    const fileName = document.getElementById('pdf-filename-input').value.trim() || "Workout";
-
-    pdf.save(fileName + ".pdf");
-}
-
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -201,7 +104,7 @@ async function exportWorkoutPDF() {
             <div class="export-content" style="display: block;">
                 <label>Workout-Name:</label>
                 <input type="text" id="pdf-filename-input" value="Workout"><br>
-                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="exportWorkoutPDF()">Jetzt PDF erzeugen & öffnen</button>
+                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor(); window.print();">Jetzt PDF erzeugen & öffnen</button>
             </div>
         </div>
 
@@ -263,7 +166,6 @@ async function exportWorkoutPDF() {
 
         let bluetoothGeraet = null, bleCharakteristik = null, amLaufen = false;
         let pulsListe = [], speedListe = [], atmungListe = [];
-        let fullPulsHistory = [], fullAtmungHistory = [], fullSpeedHistory = [];
         let maxPuls = 0, totalKcal = 0, finalDistance = 0;
         let startTimeStamp = null, recoveryTimer = null, ekgChart, atemChart;
 
@@ -339,7 +241,7 @@ async function exportWorkoutPDF() {
             finalDistance = distanzRaw / 10;
 
             if (puls > 0) {
-                pulsListe.push(puls); fullPulsHistory.push(puls);
+                pulsListe.push(puls);
                 if (puls > maxPuls) maxPuls = puls;
                 if (ekgChart) { ekgChart.data.datasets[0].data.shift(); ekgChart.data.datasets[0].data.push(puls); ekgChart.update(); }
                 const gender = document.getElementById('user-gender').value;
@@ -351,10 +253,10 @@ async function exportWorkoutPDF() {
                 if(kcalPerMinute > 0) totalKcal += (kcalPerMinute / 60); 
             }
             if (atmung > 0) {
-                atmungListe.push(atmung); fullAtmungHistory.push(atmung);
+                atmungListe.push(atmung);
                 if (atemChart) { atemChart.data.datasets[0].data.shift(); atemChart.data.datasets[0].data.push(atmung); atemChart.update(); }
             }
-            if (speed > 0 || amLaufen) { speedListe.push(speed); fullSpeedHistory.push(speed); }
+            if (speed > 0 || amLaufen) speedListe.push(speed);
 
             const avgPuls = pulsListe.length > 0 ? Math.round(pulsListe.reduce((a, b) => a + b) / pulsListe.length) : "--";
             const avgSpeed = speedListe.length > 0 ? (speedListe.reduce((a, b) => a + b) / speedListe.length).toFixed(1) : "0.0";
@@ -378,7 +280,7 @@ async function exportWorkoutPDF() {
                 await bleCharakteristik.writeValue(datenBefehl);
                 if (wert === 1) {
                     amLaufen = true; startTimeStamp = new Date();
-                    pulsListe = []; speedListe = []; atmungListe = []; fullPulsHistory=[]; fullAtmungHistory=[]; fullSpeedHistory=[]; maxPuls = 0; totalKcal = 0; finalDistance = 0;
+                    pulsListe = []; speedListe = []; atmungListe = []; maxPuls = 0; totalKcal = 0; finalDistance = 0;
                     document.getElementById('val-recovery').innerText = "Erholung: Training läuft...";
                     statusText.innerText = "Training läuft...";
                     document.getElementById('btn-start').style.display = 'none';
@@ -434,54 +336,6 @@ async function exportWorkoutPDF() {
             // Ändert den Dateinamen für das iOS-Druckmenü
             document.title = dateiNameVomNutzer;
         }
-    
-async function exportWorkoutPDF() {
-    bereitePDFVor();
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p","mm","a4");
-
-    const name = document.getElementById('pdf-workout-name').innerText;
-    const profil = document.getElementById('pdf-profil').innerText;
-    const datum = document.getElementById('pdf-datum').innerText;
-
-    pdf.setFontSize(20);
-    pdf.text(name,15,15);
-
-    pdf.setFontSize(10);
-    pdf.text(datum,15,22);
-    pdf.text(profil,15,28);
-
-    const avgSpeed = speedListe.length ?
-        (speedListe.reduce((a,b)=>a+b,0)/speedListe.length).toFixed(1)+" km/h" : "--";
-
-    const lines = [
-      "Dauer: " + document.getElementById('pdf-dauer').innerText,
-      "Kalorien: " + document.getElementById('pdf-kcal').innerText,
-      "Max Puls: " + document.getElementById('pdf-max-puls').innerText,
-      "Ø Puls: " + document.getElementById('pdf-avg-puls').innerText,
-      "Distanz: " + document.getElementById('pdf-distanz').innerText,
-      "Ø Atmung: " + document.getElementById('pdf-avg-atmung').innerText,
-      "Ø Geschwindigkeit: " + avgSpeed
-    ];
-
-    let y = 40;
-    lines.forEach(l => { pdf.text(l,15,y); y += 8; });
-
-    const ekgImg = ekgChart.canvas.toDataURL("image/png");
-    const atemImg = atemChart.canvas.toDataURL("image/png");
-
-    pdf.text("EKG",15,105);
-    pdf.addImage(ekgImg,"PNG",15,110,180,40);
-
-    pdf.text("Atmung",15,160);
-    pdf.addImage(atemImg,"PNG",15,165,180,40);
-
-    const fileName = document.getElementById('pdf-filename-input').value.trim() || "Workout";
-
-    pdf.save(fileName + ".pdf");
-}
-
-</script>
+    </script>
 </body>
 </html>
