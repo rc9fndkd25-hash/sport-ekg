@@ -6,44 +6,36 @@
     <title>Smartshirt-Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background-color: #121212; color: #ffffff; text-align: center; padding: 15px; margin: 0;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #121212; color: #ffffff; text-align: center; padding: 15px; margin: 0; }
         h1 { color: #00e676; margin-bottom: 25px; font-size: 24px; }
-        .btn {
-            background-color: #333; color: white; border: none; padding: 15px 25px;
-            font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer;
-            margin: 10px auto; width: 85%; max-width: 300px; transition: 0.2s; display: block;
-        }
+        .btn { background-color: #333; color: white; border: none; padding: 15px 25px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px auto; width: 85%; max-width: 300px; transition: 0.2s; display: block; }
         #btn-connect { background-color: #007bff; display: inline-block; }
         #btn-start { background-color: #00e676; color: black; display: none; }
         #btn-stopp { background-color: #ff1744; display: none; }
         #btn-save { background-color: #ff9100; color: black; display: none; }
         #status { color: #ffaa00; font-weight: bold; margin-top: 10px; font-size: 14px; }
-        
-        .settings-container, .export-container {
-            background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px;
-            max-width: 500px; margin: 10px auto; padding: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
+        .settings-container, .export-container { background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; max-width: 500px; margin: 10px auto; padding: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .settings-title, .export-title { font-weight: bold; color: #aaaaaa; cursor: pointer; display: flex; justify-content: space-between; font-size: 14px; }
         .settings-content, .export-content { display: none; margin-top: 10px; }
         .settings-content label, .export-content label { display: inline-block; width: 100px; font-size: 13px; margin-bottom: 5px; }
         .settings-content input, .settings-content select, .export-content input { background: #333; color: white; border: 1px solid #555; padding: 6px; border-radius: 4px; margin-bottom: 5px; width: 140px; }
         .btn-update-profile { background-color: #00e676; color: black; border: none; padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 5px; width: 100%; }
-
         .data-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; max-width: 500px; margin: 20px auto; padding: 0 10px; }
         .card { background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 15px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         .card h2 { margin: 0; font-size: 11px; color: #aaaaaa; text-transform: uppercase; letter-spacing: 0.5px; }
         .card p { margin: 8px 0 0 0; font-size: 24px; font-weight: bold; color: #ffffff; }
         .chart-container { background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; max-width: 500px; margin: 15px auto; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
 
-        /* PRINT-CSS: HIER WIRD DAS PDF-LAYOUT DEFINIERT */
+        /* PRINT-LAYOUT: Hier wurde das PDF-Design für den Druck optimiert */
         @media print {
             body { background: white !important; color: black !important; padding: 20px; }
             #main-dashboard { display: none !important; }
             #pdf-layout { display: block !important; }
         }
+        #pdf-layout { display: none; background: #ffffff; color: #000000; text-align: left; max-width: 600px; margin: 20px auto; padding: 25px; }
+        .pdf-header { border-bottom: 3px solid #00e676; padding-bottom: 10px; margin-bottom: 20px; }
+        .pdf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .pdf-card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: #f9f9f9; }
     </style>
 </head>
 <body>
@@ -53,91 +45,101 @@
         <div class="settings-container">
             <div class="settings-title" onclick="toggleSettings()">👤 Profil-Daten <span id="settings-arrow">▼</span></div>
             <div class="settings-content" id="settings-content">
-                <label>Geschlecht:</label> 
-                <select id="user-gender"><option value="male">Männlich</option><option value="female">Weiblich</option></select><br>
+                <label>Geschlecht:</label> <select id="user-gender"><option value="male">Männlich</option><option value="female">Weiblich</option></select><br>
                 <label>Alter:</label> <input type="number" id="user-age" value="25"><br>
                 <label>Gewicht (kg):</label> <input type="number" id="user-weight" value="75"><br>
                 <button class="btn-update-profile" onclick="saveUserProfile()">Daten lokal merken</button>
             </div>
         </div>
 
-        <div style="text-align: center; margin-top: 15px;">
-            <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
-        </div>
-        <div>
-            <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
-            <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
-            <button id="btn-save" class="btn" onclick="toggleExportBox()">📄 PDF Report erstellen</button>
-        </div>
+        <button id="btn-connect" class="btn" onclick="verbinden()">Uhr koppeln</button>
+        <button id="btn-start" class="btn" onclick="sendeBefehl(1)">Start (Record)</button>
+        <button id="btn-stopp" class="btn" onclick="sendeBefehl(0)">Stopp (Save & Sync)</button>
+        <button id="btn-save" class="btn" onclick="toggleExportBox()">📄 PDF Report erstellen</button>
 
         <div class="export-container" id="export-box" style="display: none; border-color: #ff9100;">
-            <div class="export-title" style="color: #ff9100;">💾 Report sichern</div>
+            <div class="export-title" style="color: #ff9100;">💾 Report festlegen</div>
             <div class="export-content" style="display: block;">
-                <label>Name:</label><input type="text" id="pdf-filename-input" value="Workout"><br>
-                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor(); window.print();">Jetzt PDF erzeugen</button>
+                <input type="text" id="pdf-filename-input" value="Workout"><br>
+                <button class="btn-update-profile" style="background-color: #ff9100;" onclick="bereitePDFVor(); window.print();">PDF erzeugen</button>
             </div>
         </div>
 
         <p id="status">Status: Bereit</p>
-        <div class="chart-container"><canvas id="ekgChart" style="width:100%; height:130px;"></canvas></div>
-        <div class="chart-container"><canvas id="atemChart" style="width:100%; height:130px;"></canvas></div>
+        <div class="chart-container"><canvas id="ekgChart"></canvas></div>
+        <div class="chart-container"><canvas id="atemChart"></canvas></div>
 
         <div class="data-container">
             <div class="card"><h2>Puls</h2><p id="val-puls">--</p></div>
             <div class="card"><h2>Atmung</h2><p id="val-atmung">--</p></div>
             <div class="card"><h2>Kcal</h2><p id="val-kcal">0</p></div>
-            <div class="card"><h2>Speed</h2><p id="val-speed">0.0</p></div>
-            <div class="card" style="grid-column: span 2;"><h2>Distanz</h2><p id="val-distanz">0.00 km</p></div>
+            <div class="card"><h2>Distanz</h2><p id="val-distanz">0.00 km</p></div>
         </div>
     </div>
 
-    <div id="pdf-layout" style="display: none; background: #ffffff; color: #000000; padding: 40px; font-family: sans-serif;">
-        <div style="border-bottom: 4px solid #00e676; padding-bottom: 20px; margin-bottom: 30px;">
-            <h1 id="pdf-workout-name" style="margin: 0; font-size: 32px;">Workout-Report</h1>
-            <p id="pdf-datum" style="color: #555;">Datum: --</p>
-        </div>
-        <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
-            <h2 style="font-size: 16px; margin: 0;">Nutzerprofil</h2>
+    <div id="pdf-layout">
+        <div class="pdf-header">
+            <h1 id="pdf-workout-name">Workout-Report</h1>
+            <p id="pdf-datum">Datum: --</p>
             <p id="pdf-profil">--</p>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-            <div style="border: 1px solid #ddd; padding: 15px;"><h3>DAUER</h3><p id="pdf-dauer" style="font-weight: bold;">--</p></div>
-            <div style="border: 1px solid #ddd; padding: 15px;"><h3>KALORIEN</h3><p id="pdf-kcal" style="font-weight: bold;">--</p></div>
-            <div style="border: 1px solid #ddd; padding: 15px;"><h3>DISTANZ</h3><p id="pdf-distanz" style="font-weight: bold;">--</p></div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div style="border: 1px solid #ddd; padding: 15px;"><h3>PULS (MAX/AVG)</h3><p style="font-weight: bold;"><span id="pdf-max-puls">--</span> / <span id="pdf-avg-puls">--</span></p></div>
-            <div style="border: 1px solid #ddd; padding: 15px;"><h3>ATMUNG (Ø)</h3><p id="pdf-avg-atmung" style="font-weight: bold;">--</p></div>
+        <div class="pdf-grid">
+            <div class="pdf-card"><h3>Dauer</h3><p id="pdf-dauer">--</p></div>
+            <div class="pdf-card"><h3>Kalorien</h3><p id="pdf-kcal">--</p></div>
+            <div class="pdf-card"><h3>Max. Puls</h3><p id="pdf-max-puls">--</p></div>
+            <div class="pdf-card"><h3>Ø Puls</h3><p id="pdf-avg-puls">--</p></div>
+            <div class="pdf-card"><h3>Distanz</h3><p id="pdf-distanz">--</p></div>
+            <div class="pdf-card"><h3>Ø Atmung</h3><p id="pdf-avg-atmung">--</p></div>
         </div>
     </div>
 
     <script>
-        // ... (Deine gewohnte Bluetooth-Logik bleibt hier exakt gleich) ...
         const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
-        let pulsListe = [], speedListe = [], atmungListe = [], maxPuls = 0, totalKcal = 0, finalDistance = 0, startTimeStamp = null;
+        let bluetoothGeraet, bleCharakteristik, pulsListe = [], speedListe = [], atmungListe = [];
+        let maxPuls = 0, totalKcal = 0, finalDistance = 0, startTimeStamp = null, amLaufen = false;
+
+        // Hier kommen deine gesamten Funktionen...
+        async function verbinden() {
+            try {
+                bluetoothGeraet = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE_UUID] });
+                const server = await bluetoothGeraet.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                bleCharakteristik = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                await bleCharakteristik.startNotifications();
+                bleCharakteristik.addEventListener('characteristicvaluechanged', datenEmpfangen);
+                document.getElementById('status').innerText = "Erfolgreich verbunden!";
+                document.getElementById('btn-connect').style.display = 'none';
+                document.getElementById('btn-start').style.display = 'block';
+            } catch(e) { console.error(e); }
+        }
+
+        function datenEmpfangen(event) {
+            const val = event.target.value;
+            const puls = val.getUint8(1);
+            const atmung = val.getUint8(4);
+            document.getElementById('val-puls').innerText = puls;
+            document.getElementById('val-atmung').innerText = atmung;
+            pulsListe.push(puls);
+            if(puls > maxPuls) maxPuls = puls;
+        }
+
+        async function sendeBefehl(wert) {
+            await bleCharakteristik.writeValue(new Uint8Array([wert]));
+            if(wert === 0) document.getElementById('btn-save').style.display = 'block';
+        }
 
         function bereitePDFVor() {
-            if (!startTimeStamp) startTimeStamp = new Date();
-            const dauer = Math.round((new Date() - startTimeStamp) / 1000);
-            const m = Math.floor(dauer / 60), s = dauer % 60;
-            
             document.getElementById('pdf-workout-name').innerText = document.getElementById('pdf-filename-input').value;
             document.getElementById('pdf-datum').innerText = "Datum: " + new Date().toLocaleDateString();
-            document.getElementById('pdf-profil').innerText = document.getElementById('user-gender').value + ", " + document.getElementById('user-age').value + " J, " + document.getElementById('user-weight').value + " kg";
-            document.getElementById('pdf-dauer').innerText = m + ":" + s.toString().padStart(2, '0') + " Min";
             document.getElementById('pdf-kcal').innerText = Math.round(totalKcal) + " kcal";
-            document.getElementById('pdf-distanz').innerText = finalDistance.toFixed(2) + " km";
             document.getElementById('pdf-max-puls').innerText = maxPuls + " BPM";
-            document.getElementById('pdf-avg-puls').innerText = (pulsListe.length > 0 ? Math.round(pulsListe.reduce((a,b)=>a+b)/pulsListe.length) : "--") + " BPM";
-            document.getElementById('pdf-avg-atmung').innerText = (atmungListe.length > 0 ? Math.round(atmungListe.reduce((a,b)=>a+b)/atmungListe.length) : "--") + " BRM";
-            document.title = document.getElementById('pdf-filename-input').value;
+            document.getElementById('pdf-avg-puls').innerText = (pulsListe.length > 0 ? Math.round(pulsListe.reduce((a,b)=>a+b)/pulsListe.length) : 0) + " BPM";
         }
         
-        // Füge hier deine restlichen Funktionen (verbinden, datenEmpfangen, sendeBefehl, etc.) ein.
         function toggleSettings() { document.getElementById('settings-content').style.display = document.getElementById('settings-content').style.display === 'block' ? 'none' : 'block'; }
         function toggleExportBox() { document.getElementById('export-box').style.display = document.getElementById('export-box').style.display === 'none' ? 'block' : 'none'; }
-        function saveUserProfile() { localStorage.setItem('shirt_age', document.getElementById('user-age').value); localStorage.setItem('shirt_weight', document.getElementById('user-weight').value); alert("Daten gesichert"); }
+        function saveUserProfile() { localStorage.setItem('shirt_age', document.getElementById('user-age').value); alert("Daten gespeichert"); }
     </script>
 </body>
 </html>
