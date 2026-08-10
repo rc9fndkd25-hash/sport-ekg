@@ -7,7 +7,7 @@
 
     <!-- Chart.js für Live-Diagramme -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- html2canvas für den Foto/Bericht-Export -->
+    <!-- html2canvas für den Foto-Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
@@ -74,7 +74,7 @@
             color: white;
         }
 
-        /* METRIK-KACHELN GRID */
+        /* METRIK-KACHELN GRID (JETZT MIT DISTANZ) */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -88,6 +88,10 @@
             border-radius: 12px;
             border: 1px solid #334155;
             text-align: center;
+        }
+
+        .metric-card.full-width {
+            grid-column: span 2;
         }
 
         .metric-label {
@@ -125,7 +129,7 @@
             font-weight: 600;
         }
 
-        /* MODAL (POPUP FOR WORKOUT PHOTO) */
+        /* MODAL POPUP */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -138,23 +142,34 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            overflow-y: auto;
         }
 
         .modal-content {
-            background-color: #1e293b;
-            padding: 25px;
+            background-color: #0f172a;
+            padding: 20px;
             border-radius: 16px;
             max-width: 450px;
             width: 100%;
             color: white;
             border: 1px solid #334155;
+            text-align: center;
+        }
+
+        /* REPORT CARD - WIRD ALS FOTO EXPORTIERT */
+        #reportCard {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid #334155;
+            text-align: center;
         }
 
         .summary-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin: 15px 0;
+            gap: 10px;
+            margin-top: 15px;
             text-align: left;
         }
 
@@ -162,6 +177,7 @@
             background: #0f172a;
             padding: 10px;
             border-radius: 8px;
+            border: 1px solid #334155;
         }
 
         .summary-item strong {
@@ -176,11 +192,19 @@
             color: #38bdf8;
         }
 
-        #imagePreviewContainer img {
+        /* BILD-PREVIEW FÜR IOS FOTOS SAVING */
+        #generatedImageResult {
             width: 100%;
-            border-radius: 8px;
+            border-radius: 12px;
+            border: 1px solid #38bdf8;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: none;
+        }
+
+        .hint-text {
+            font-size: 0.8rem;
+            color: #94a3b8;
             margin-top: 10px;
-            border: 1px solid #475569;
         }
 
         .modal-buttons {
@@ -189,14 +213,10 @@
             margin-top: 15px;
         }
 
-        .btn-save {
-            background-color: #10b981;
-            color: white;
-        }
-
         .btn-close {
             background-color: #64748b;
             color: white;
+            width: 100%;
         }
     </style>
 </head>
@@ -231,6 +251,11 @@
             <div class="unit">km/h</div>
         </div>
         <div class="metric-card">
+            <div class="metric-label">📍 Distanz</div>
+            <div class="metric-value" style="color: #818cf8;" id="distVal">0.00</div>
+            <div class="unit">km</div>
+        </div>
+        <div class="metric-card full-width">
             <div class="metric-label">🔥 Kalorien</div>
             <div class="metric-value" style="color: #f87171;" id="calVal">0</div>
             <div class="unit">kcal</div>
@@ -251,34 +276,42 @@
 
     <!-- MODAL / ZUSAMMENFASSUNG PER FOTO -->
     <div class="modal-overlay" id="summaryModal">
-        <div class="modal-content" id="pdf-layout">
-            <h2 style="text-align: center; color: #38bdf8;">🏆 Workout Report</h2>
-            <p style="text-align: center; font-size: 0.8rem; color: #94a3b8; margin-top: 4px;" id="reportDate"></p>
+        <div class="modal-content">
+            
+            <!-- DIESER BEREICH WIRD ALS FOTO GEKNIPST -->
+            <div id="reportCard">
+                <h2 style="color: #38bdf8; margin-bottom: 2px;">🏆 Workout Report</h2>
+                <p style="font-size: 0.8rem; color: #94a3b8;" id="reportDate"></p>
 
-            <div class="summary-grid">
-                <div class="summary-item">
-                    <strong>Ø PULS</strong>
-                    <span id="sumPulse">--</span> <small class="unit">BPM</small>
-                </div>
-                <div class="summary-item">
-                    <strong>Ø ATMUNG</strong>
-                    <span id="sumBreath">--</span> <small class="unit">RPM</small>
-                </div>
-                <div class="summary-item">
-                    <strong>MAX SPEED</strong>
-                    <span id="sumSpeed">0</span> <small class="unit">km/h</small>
-                </div>
-                <div class="summary-item">
-                    <strong>KALORIEN</strong>
-                    <span id="sumCal">0</span> <small class="unit">kcal</small>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <strong>Ø PULS</strong>
+                        <span id="sumPulse">--</span> <small class="unit">BPM</small>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Ø ATMUNG</strong>
+                        <span id="sumBreath">--</span> <small class="unit">RPM</small>
+                    </div>
+                    <div class="summary-item">
+                        <strong>MAX SPEED</strong>
+                        <span id="sumSpeed">0</span> <small class="unit">km/h</small>
+                    </div>
+                    <div class="summary-item">
+                        <strong>DISTANZ</strong>
+                        <span id="sumDist">0.00</span> <small class="unit">km</small>
+                    </div>
+                    <div class="summary-item" style="grid-column: span 2;">
+                        <strong>KALORIEN</strong>
+                        <span id="sumCal">0</span> <small class="unit">kcal</small>
+                    </div>
                 </div>
             </div>
 
-            <!-- Bild-Vorschau aus html2canvas -->
-            <div id="imagePreviewContainer"></div>
+            <!-- GENERIERTES FOTO FÜR IOS FOTOS SAVING -->
+            <img id="generatedImageResult" alt="Workout Foto">
+            <p class="hint-text" id="saveHint">💡 Tipp: Auf das Bild gedrückt halten, um es unter "In Fotos sichern" zu speichern!</p>
 
             <div class="modal-buttons">
-                <button class="btn-save" onclick="downloadReportImage()">📸 Foto Speichern</button>
                 <button class="btn-close" onclick="closeModal()">Schließen</button>
             </div>
         </div>
@@ -291,12 +324,12 @@
 
         let bleDevice = null;
         let gattServer = null;
-        let generatedCanvas = null;
 
-        // Statistik-Speicher für die Auswertung
+        // Statistik-Speicher
         let pulseSum = 0, pulseCount = 0;
         let breathSum = 0, breathCount = 0;
         let maxSpeed = 0;
+        let totalDistance = 0;
         let totalCalories = 0;
 
         // --- CHART.JS INITIALISIERUNG ---
@@ -361,36 +394,35 @@
             }
         }
 
-        // --- BLE DATEN EMPFANGEN & VERARBEITEN ---
+        // --- BLE DATEN EMPFANGEN ---
         function handleBleData(event) {
             const value = event.target.value;
             if (value.byteLength < 5) return;
 
             const header = value.getUint8(0);
-            if (header !== 0x11) return; // Paket-Typ Prüfen
+            if (header !== 0x11) return;
 
             const pulse = value.getUint8(1);
             const speed = value.getUint8(2);
-            const dist = value.getUint8(3);
+            const distRaw = value.getUint8(3);
             const breath = value.getUint8(4);
 
             const timestamp = new Date().toLocaleTimeString();
 
-            // 1. Puls verarbeiten
+            // 1. Puls
             if (pulse > 0) {
                 document.getElementById('pulseVal').innerText = pulse;
                 pulseSum += pulse;
                 pulseCount++;
                 addChartData(pulseChart, timestamp, pulse);
 
-                // Kalorien-Ticker (Annäherung basierend auf Herzfrequenz)
                 totalCalories += (pulse * 0.0012);
                 document.getElementById('calVal').innerText = Math.round(totalCalories);
             } else {
                 document.getElementById('pulseVal').innerText = '--';
             }
 
-            // 2. Atmung verarbeiten
+            // 2. Atmung
             document.getElementById('breathVal').innerText = breath;
             if (breath > 0) {
                 breathSum += breath;
@@ -398,9 +430,13 @@
             }
             addChartData(breathChart, timestamp, breath);
 
-            // 3. Speed & Distanz verarbeiten
+            // 3. Speed & Distanz
             document.getElementById('speedVal').innerText = speed;
             if (speed > maxSpeed) maxSpeed = speed;
+
+            // Distanzanzeige (Berechnet oder aus BLE)
+            totalDistance = distRaw / 10.0; // Angenommener Skalierungsfaktor
+            document.getElementById('distVal').innerText = totalDistance.toFixed(2);
         }
 
         function addChartData(chart, label, data) {
@@ -414,9 +450,8 @@
             chart.update();
         }
 
-        // --- WORKOUT STOPPEN & FOTO ERZEUGEN ---
+        // --- WORKOUT STOPPEN & PERFEKTES FOTO RENDER ---
         async function stopWorkout() {
-            // BLE Trennen
             if (bleDevice && bleDevice.gatt.connected) {
                 bleDevice.gatt.disconnect();
             }
@@ -425,50 +460,43 @@
             document.getElementById('connectBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
 
-            // Durchschnittswerte berechnen
             const avgPulse = pulseCount > 0 ? Math.round(pulseSum / pulseCount) : '--';
             const avgBreath = breathCount > 0 ? Math.round(breathSum / breathCount) : '--';
 
             document.getElementById('sumPulse').innerText = avgPulse;
             document.getElementById('sumBreath').innerText = avgBreath;
             document.getElementById('sumSpeed').innerText = maxSpeed;
+            document.getElementById('sumDist').innerText = totalDistance.toFixed(2);
             document.getElementById('sumCal').innerText = Math.round(totalCalories);
             document.getElementById('reportDate').innerText = new Date().toLocaleString('de-DE');
 
-            // Modal Einblenden
-            const modal = document.getElementById('summaryModal');
-            modal.style.display = 'flex';
+            // Reset UI View
+            const card = document.getElementById('reportCard');
+            const imgResult = document.getElementById('generatedImageResult');
+            card.style.display = 'block';
+            imgResult.style.display = 'none';
 
-            // Foto-Generierung via html2canvas
-            const target = document.getElementById('pdf-layout');
+            // Modal Einblenden
+            document.getElementById('summaryModal').style.display = 'flex';
+
+            // html2canvas generiert ein sauberes Einzelbild ohne Doppelkasten
             if (typeof html2canvas !== 'undefined') {
                 try {
-                    generatedCanvas = await html2canvas(target, {
+                    const canvas = await html2canvas(card, {
                         backgroundColor: '#1e293b',
-                        scale: 2
+                        scale: 3 // Sehr hohe Auflösung für scharfe Schrift auf dem Smartphone
                     });
 
-                    const previewContainer = document.getElementById('imagePreviewContainer');
-                    previewContainer.innerHTML = '';
-                    const img = document.createElement('img');
-                    img.src = generatedCanvas.toDataURL('image/png');
-                    previewContainer.appendChild(img);
+                    // Das generierte Bild in das <img> Tag einsetzen
+                    imgResult.src = canvas.toDataURL('image/png');
+                    card.style.display = 'none'; // Versteckt das rohe HTML, zeigt nur das reine Bild
+                    imgResult.style.display = 'block';
                 } catch (err) {
-                    console.error("Fehler beim Erstellen der Foto-Zusammenfassung:", err);
+                    console.error("Fehler beim Erstellen des Fotos:", err);
                 }
             }
         }
 
-        // FOTO DOWNLOAD
-        function downloadReportImage() {
-            if (!generatedCanvas) return;
-            const link = document.createElement('a');
-            link.download = `Smartshirt_Workout_${new Date().toISOString().slice(0,10)}.png`;
-            link.href = generatedCanvas.toDataURL('image/png');
-            link.click();
-        }
-
-        // MODAL SCHLIESSEN
         function closeModal() {
             document.getElementById('summaryModal').style.display = 'none';
         }
