@@ -387,13 +387,24 @@
         }).addTo(map);
         let trackPolyline = L.polyline([], {color: '#38bdf8', weight: 4}).addTo(map);
 
-        // --- CHART.JS ---
+        // --- CHART.JS WITH SMOOTH LINES (PointRadius: 0) ---
         const maxDataPoints = 30;
 
         const ctxPulse = document.getElementById('pulseChart').getContext('2d');
         const pulseChart = new Chart(ctxPulse, {
             type: 'line',
-            data: { labels: [], datasets: [{ data: [], borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', borderWidth: 2, tension: 0.3, fill: true }] },
+            data: { 
+                labels: [], 
+                datasets: [{ 
+                    data: [], 
+                    borderColor: '#4ade80', 
+                    backgroundColor: 'rgba(74, 222, 128, 0.1)', 
+                    borderWidth: 2, 
+                    tension: 0.4, 
+                    pointRadius: 0, 
+                    fill: true 
+                }] 
+            },
             options: {
                 responsive: true, animation: false,
                 scales: { y: { suggestedMin: 50, suggestedMax: 180, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } }, x: { display: false } },
@@ -404,7 +415,18 @@
         const ctxBreath = document.getElementById('breathChart').getContext('2d');
         const breathChart = new Chart(ctxBreath, {
             type: 'line',
-            data: { labels: [], datasets: [{ data: [], borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 2, tension: 0.3, fill: true }] },
+            data: { 
+                labels: [], 
+                datasets: [{ 
+                    data: [], 
+                    borderColor: '#38bdf8', 
+                    backgroundColor: 'rgba(56, 189, 248, 0.1)', 
+                    borderWidth: 2, 
+                    tension: 0.4, 
+                    pointRadius: 0, 
+                    fill: true 
+                }] 
+            },
             options: {
                 responsive: true, animation: false,
                 scales: { y: { suggestedMin: 0, suggestedMax: 35, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } }, x: { display: false } },
@@ -412,7 +434,6 @@
             }
         });
 
-        // Umrechnung km/h in Pace (min/km)
         function speedToPaceStr(speedKmh) {
             if (!speedKmh || speedKmh < 0.5) return "--:--";
             let totalSecs = Math.round(3600 / speedKmh);
@@ -472,6 +493,8 @@
 
                 totalCalories += (pulse * 0.0012);
                 document.getElementById('calVal').innerText = Math.round(totalCalories);
+            } else {
+                document.getElementById('pulseVal').innerText = '--';
             }
 
             // 2. ATMUNG LOGIK
@@ -517,7 +540,6 @@
             document.getElementById('connectBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
 
-            // Werte eintragen
             document.getElementById('sumAvgPulse').innerText = pulseCount > 0 ? Math.round(pulseSum / pulseCount) : '--';
             document.getElementById('sumMinPulse').innerText = minPulse !== Infinity ? minPulse : '--';
             document.getElementById('sumMaxPulse').innerText = maxPulse > 0 ? maxPulse : '--';
