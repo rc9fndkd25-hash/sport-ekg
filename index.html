@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smartshirt Fitness Tracker</title>
+    <title>Smartshirt Performance Tracker</title>
 
     <!-- Chart.js für Live-Diagramme -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2canvas für den Foto-Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Leaflet.js für GPS Strecken-Karte -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
         * {
@@ -32,9 +35,9 @@
         }
 
         h1 {
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             color: #38bdf8;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
 
         .status-bar {
@@ -45,7 +48,7 @@
         .controls {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         button {
@@ -64,84 +67,91 @@
             cursor: not-allowed;
         }
 
-        #connectBtn {
-            background-color: #0284c7;
-            color: white;
-        }
+        #connectBtn { background-color: #0284c7; color: white; }
+        #stopBtn { background-color: #ef4444; color: white; }
 
-        #stopBtn {
-            background-color: #ef4444;
-            color: white;
-        }
-
-        /* METRIK-KACHELN GRID (JETZT MIT DISTANZ) */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+        /* SEKTIONS-CONTAINER */
+        .section-card {
+            background-color: #1e293b;
+            border-radius: 14px;
+            border: 1px solid #334155;
+            padding: 18px;
             margin-bottom: 20px;
         }
 
+        .section-header {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+
+        .pulse-theme { color: #4ade80; }
+        .breath-theme { color: #38bdf8; }
+        .pace-theme { color: #fbbf24; }
+
+        /* KACHEL-GRIDS */
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+
+        @media (max-width: 500px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        }
+
         .metric-card {
-            background-color: #1e293b;
-            padding: 15px;
-            border-radius: 12px;
+            background-color: #0f172a;
+            padding: 12px 8px;
+            border-radius: 10px;
             border: 1px solid #334155;
             text-align: center;
         }
 
-        .metric-card.full-width {
-            grid-column: span 2;
-        }
-
         .metric-label {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             color: #94a3b8;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .metric-value {
-            font-size: 1.8rem;
+            font-size: 1.3rem;
             font-weight: bold;
         }
 
         .unit {
-            font-size: 0.9rem;
+            font-size: 0.75rem;
             color: #64748b;
             font-weight: normal;
         }
 
-        /* GRAPHEN CARDS */
-        .chart-card {
-            background-color: #1e293b;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #334155;
-            margin-bottom: 15px;
+        /* GRAPHEN & MAP */
+        .chart-box {
+            position: relative;
+            width: 100%;
         }
 
-        .chart-title {
-            color: #94a3b8;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            font-weight: 600;
+        #map {
+            height: 220px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            z-index: 1;
         }
 
         /* MODAL POPUP */
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.88);
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 15px;
             overflow-y: auto;
         }
 
@@ -156,7 +166,6 @@
             text-align: center;
         }
 
-        /* REPORT CARD - WIRD ALS FOTO EXPORTIERT */
         #reportCard {
             background-color: #1e293b;
             padding: 20px;
@@ -165,34 +174,36 @@
             text-align: center;
         }
 
-        .summary-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
+        .report-section {
+            margin-top: 12px;
             text-align: left;
         }
 
-        .summary-item {
-            background: #0f172a;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #334155;
-        }
-
-        .summary-item strong {
-            display: block;
+        .report-section-title {
             font-size: 0.75rem;
             color: #94a3b8;
-        }
-
-        .summary-item span {
-            font-size: 1.2rem;
+            text-transform: uppercase;
+            margin-bottom: 6px;
             font-weight: bold;
-            color: #38bdf8;
         }
 
-        /* BILD-PREVIEW FÜR IOS FOTOS SAVING */
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .report-item {
+            background: #0f172a;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            text-align: center;
+        }
+
+        .report-item strong { display: block; font-size: 0.65rem; color: #94a3b8; }
+        .report-item span { font-size: 1.1rem; font-weight: bold; color: #38bdf8; }
+
         #generatedImageResult {
             width: 100%;
             border-radius: 12px;
@@ -201,29 +212,18 @@
             display: none;
         }
 
-        .hint-text {
-            font-size: 0.8rem;
-            color: #94a3b8;
-            margin-top: 10px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
         .btn-close {
             background-color: #64748b;
             color: white;
             width: 100%;
+            margin-top: 15px;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Smartshirt Tracker</h1>
+        <h1>Smartshirt Performance</h1>
         <div class="status-bar" id="statusText">Status: Nicht verbunden</div>
     </header>
 
@@ -233,147 +233,199 @@
         <button id="stopBtn" onclick="stopWorkout()" disabled>🛑 Beenden</button>
     </div>
 
-    <!-- Live-Kacheln -->
-    <div class="metrics-grid">
-        <div class="metric-card">
-            <div class="metric-label">❤️ Puls</div>
-            <div class="metric-value" style="color: #4ade80;" id="pulseVal">--</div>
-            <div class="unit">BPM</div>
+    <!-- 1. BEREICH: PULS -->
+    <div class="section-card">
+        <div class="section-header pulse-theme">❤️ PULS & HERZFREQUENZ</div>
+        <div class="grid-4">
+            <div class="metric-card">
+                <div class="metric-label">Aktuell</div>
+                <div class="metric-value pulse-theme" id="pulseVal">--</div>
+                <div class="unit">BPM</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Min</div>
+                <div class="metric-value" id="minPulseVal">--</div>
+                <div class="unit">BPM</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Max</div>
+                <div class="metric-value" id="maxPulseVal">--</div>
+                <div class="unit">BPM</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Ø Schnitt</div>
+                <div class="metric-value" id="avgPulseVal">--</div>
+                <div class="unit">BPM</div>
+            </div>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">🫁 Atmung</div>
-            <div class="metric-value" style="color: #38bdf8;" id="breathVal">--</div>
-            <div class="unit">RPM</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">⚡ Speed</div>
-            <div class="metric-value" style="color: #fbbf24;" id="speedVal">0</div>
-            <div class="unit">km/h</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">📍 Distanz</div>
-            <div class="metric-value" style="color: #818cf8;" id="distVal">0.00</div>
-            <div class="unit">km</div>
-        </div>
-        <div class="metric-card full-width">
-            <div class="metric-label">🔥 Kalorien</div>
-            <div class="metric-value" style="color: #f87171;" id="calVal">0</div>
-            <div class="unit">kcal</div>
+        <div class="chart-box">
+            <canvas id="pulseChart"></canvas>
         </div>
     </div>
 
-    <!-- Puls Graph -->
-    <div class="chart-card">
-        <div class="chart-title">❤️ PULS-VERLAUF (BPM)</div>
-        <canvas id="pulseChart"></canvas>
+    <!-- 2. BEREICH: ATMUNG -->
+    <div class="section-card">
+        <div class="section-header breath-theme">🫁 ATMUNG & VENTILATION</div>
+        <div class="grid-3">
+            <div class="metric-card">
+                <div class="metric-label">Aktuell</div>
+                <div class="metric-value breath-theme" id="breathVal">--</div>
+                <div class="unit">RPM</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Max</div>
+                <div class="metric-value" id="maxBreathVal">--</div>
+                <div class="unit">RPM</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Ø Schnitt</div>
+                <div class="metric-value" id="avgBreathVal">--</div>
+                <div class="unit">RPM</div>
+            </div>
+        </div>
+        <div class="chart-box">
+            <canvas id="breathChart"></canvas>
+        </div>
     </div>
 
-    <!-- Atmung Graph -->
-    <div class="chart-card">
-        <div class="chart-title">🫁 ATEMFREQUENZ-VERLAUF (RPM)</div>
-        <canvas id="breathChart"></canvas>
+    <!-- 3. BEREICH: PACE & DISTANZ -->
+    <div class="section-card">
+        <div class="section-header pace-theme">🏃 TEMPO, STRECKE & KALORIEN</div>
+        <div class="grid-4">
+            <div class="metric-card">
+                <div class="metric-label">Akt. Pace</div>
+                <div class="metric-value pace-theme" id="paceVal">--:--</div>
+                <div class="unit">min/km</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Ø Pace</div>
+                <div class="metric-value" id="avgPaceVal">--:--</div>
+                <div class="unit">min/km</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Distanz</div>
+                <div class="metric-value" style="color:#818cf8;" id="distVal">0.00</div>
+                <div class="unit">km</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Kalorien</div>
+                <div class="metric-value" style="color:#f87171;" id="calVal">0</div>
+                <div class="unit">kcal</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. BEREICH: STRECKENVERLAUF -->
+    <div class="section-card">
+        <div class="section-header" style="color:#a855f7;">🗺️ STRECKENVERLAUF (GPS)</div>
+        <div id="map"></div>
     </div>
 
     <!-- MODAL / ZUSAMMENFASSUNG PER FOTO -->
     <div class="modal-overlay" id="summaryModal">
         <div class="modal-content">
             
-            <!-- DIESER BEREICH WIRD ALS FOTO GEKNIPST -->
             <div id="reportCard">
                 <h2 style="color: #38bdf8; margin-bottom: 2px;">🏆 Workout Report</h2>
-                <p style="font-size: 0.8rem; color: #94a3b8;" id="reportDate"></p>
+                <p style="font-size: 0.75rem; color: #94a3b8;" id="reportDate"></p>
 
-                <div class="summary-grid">
-                    <div class="summary-item">
-                        <strong>Ø PULS</strong>
-                        <span id="sumPulse">--</span> <small class="unit">BPM</small>
+                <!-- Puls Block -->
+                <div class="report-section">
+                    <div class="report-section-title">❤️ Herzfrequenz (BPM)</div>
+                    <div class="report-grid">
+                        <div class="report-item"><strong>Ø PULS</strong><span id="sumAvgPulse">--</span></div>
+                        <div class="report-item"><strong>MIN</strong><span id="sumMinPulse">--</span></div>
+                        <div class="report-item"><strong>MAX</strong><span id="sumMaxPulse">--</span></div>
                     </div>
-                    <div class="summary-item">
-                        <strong>Ø ATMUNG</strong>
-                        <span id="sumBreath">--</span> <small class="unit">RPM</small>
+                </div>
+
+                <!-- Atmung Block -->
+                <div class="report-section">
+                    <div class="report-section-title">🫁 Atmung (RPM)</div>
+                    <div class="report-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="report-item"><strong>Ø ATMUNG</strong><span id="sumAvgBreath">--</span></div>
+                        <div class="report-item"><strong>MAX ATMUNG</strong><span id="sumMaxBreath">--</span></div>
                     </div>
-                    <div class="summary-item">
-                        <strong>MAX SPEED</strong>
-                        <span id="sumSpeed">0</span> <small class="unit">km/h</small>
-                    </div>
-                    <div class="summary-item">
-                        <strong>DISTANZ</strong>
-                        <span id="sumDist">0.00</span> <small class="unit">km</small>
-                    </div>
-                    <div class="summary-item" style="grid-column: span 2;">
-                        <strong>KALORIEN</strong>
-                        <span id="sumCal">0</span> <small class="unit">kcal</small>
+                </div>
+
+                <!-- Pace / Distanz Block -->
+                <div class="report-section">
+                    <div class="report-section-title">🏃 Tempo & Distanz</div>
+                    <div class="report-grid">
+                        <div class="report-item"><strong>Ø PACE</strong><span id="sumAvgPace">--:--</span></div>
+                        <div class="report-item"><strong>DISTANZ</strong><span id="sumDist">0.00 km</span></div>
+                        <div class="report-item"><strong>KALORIEN</strong><span id="sumCal">0 kcal</span></div>
                     </div>
                 </div>
             </div>
 
-            <!-- GENERIERTES FOTO FÜR IOS FOTOS SAVING -->
+            <!-- FOTO SPEICHER-PREVIEW FOR IOS -->
             <img id="generatedImageResult" alt="Workout Foto">
-            <p class="hint-text" id="saveHint">💡 Tipp: Auf das Bild gedrückt halten, um es unter "In Fotos sichern" zu speichern!</p>
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">💡 Auf das Bild gedrückt halten $\rightarrow$ <strong>In Fotos sichern</strong></p>
 
-            <div class="modal-buttons">
-                <button class="btn-close" onclick="closeModal()">Schließen</button>
-            </div>
+            <button class="btn-close" onclick="closeModal()">Schließen</button>
         </div>
     </div>
 
     <script>
-        // --- BLE UUIDs ---
         const SERVICE_UUID = "0000180d-0000-1000-8000-00805f9b34fb";
         const CHARACTERISTIC_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
 
         let bleDevice = null;
         let gattServer = null;
 
-        // Statistik-Speicher
-        let pulseSum = 0, pulseCount = 0;
-        let breathSum = 0, breathCount = 0;
-        let maxSpeed = 0;
-        let totalDistance = 0;
-        let totalCalories = 0;
+        // Metrik-Speicher
+        let minPulse = Infinity, maxPulse = 0, pulseSum = 0, pulseCount = 0;
+        let maxBreath = 0, breathSum = 0, breathCount = 0;
+        let totalDistance = 0, totalCalories = 0;
+        let speedSum = 0, speedCount = 0;
 
-        // --- CHART.JS INITIALISIERUNG ---
+        // Leaflet Map Initialisierung
+        let map = L.map('map').setView([50.3123, 7.4512], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        let trackPolyline = L.polyline([], {color: '#38bdf8', weight: 4}).addTo(map);
+
+        // --- CHART.JS ---
         const maxDataPoints = 30;
 
-        // 1. Puls Chart
         const ctxPulse = document.getElementById('pulseChart').getContext('2d');
         const pulseChart = new Chart(ctxPulse, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: 'Puls', data: [], borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', borderWidth: 2, tension: 0.3, fill: true }] },
+            data: { labels: [], datasets: [{ data: [], borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', borderWidth: 2, tension: 0.3, fill: true }] },
             options: {
-                responsive: true,
-                animation: false,
-                scales: {
-                    y: { suggestedMin: 50, suggestedMax: 180, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-                    x: { grid: { display: false }, ticks: { display: false } }
-                },
+                responsive: true, animation: false,
+                scales: { y: { suggestedMin: 50, suggestedMax: 180, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } }, x: { display: false } },
                 plugins: { legend: { display: false } }
             }
         });
 
-        // 2. Atmung Chart
         const ctxBreath = document.getElementById('breathChart').getContext('2d');
         const breathChart = new Chart(ctxBreath, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: 'Atmung', data: [], borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 2, tension: 0.3, fill: true }] },
+            data: { labels: [], datasets: [{ data: [], borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderWidth: 2, tension: 0.3, fill: true }] },
             options: {
-                responsive: true,
-                animation: false,
-                scales: {
-                    y: { suggestedMin: 0, suggestedMax: 35, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
-                    x: { grid: { display: false }, ticks: { display: false } }
-                },
+                responsive: true, animation: false,
+                scales: { y: { suggestedMin: 0, suggestedMax: 35, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } }, x: { display: false } },
                 plugins: { legend: { display: false } }
             }
         });
+
+        // Umrechnung km/h in Pace (min/km)
+        function speedToPaceStr(speedKmh) {
+            if (!speedKmh || speedKmh < 0.5) return "--:--";
+            let totalSecs = Math.round(3600 / speedKmh);
+            let mins = Math.floor(totalSecs / 60);
+            let secs = totalSecs % 60;
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
 
         // --- BLE VERBINDUNG ---
         async function connectBLE() {
             try {
                 document.getElementById('statusText').innerText = "Status: Suche Smartshirt...";
-                bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }]
-                });
+                bleDevice = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
 
                 document.getElementById('statusText').innerText = "Status: Verbinde GATT...";
                 gattServer = await bleDevice.gatt.connect();
@@ -387,62 +439,69 @@
                 document.getElementById('statusText').innerText = "Status: ✅ Live verbunden";
                 document.getElementById('connectBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = false;
-
             } catch (error) {
-                console.error("BLE Fehler:", error);
+                console.error(error);
                 document.getElementById('statusText').innerText = "Status: Verbindung fehlgeschlagen";
             }
         }
 
-        // --- BLE DATEN EMPFANGEN ---
         function handleBleData(event) {
             const value = event.target.value;
             if (value.byteLength < 5) return;
-
-            const header = value.getUint8(0);
-            if (header !== 0x11) return;
+            if (value.getUint8(0) !== 0x11) return;
 
             const pulse = value.getUint8(1);
-            const speed = value.getUint8(2);
+            const speedKmh = value.getUint8(2);
             const distRaw = value.getUint8(3);
             const breath = value.getUint8(4);
 
             const timestamp = new Date().toLocaleTimeString();
 
-            // 1. Puls
+            // 1. PULS LOGIK
             if (pulse > 0) {
                 document.getElementById('pulseVal').innerText = pulse;
+                if (pulse < minPulse) minPulse = pulse;
+                if (pulse > maxPulse) maxPulse = pulse;
                 pulseSum += pulse;
                 pulseCount++;
+
+                document.getElementById('minPulseVal').innerText = minPulse;
+                document.getElementById('maxPulseVal').innerText = maxPulse;
+                document.getElementById('avgPulseVal').innerText = Math.round(pulseSum / pulseCount);
                 addChartData(pulseChart, timestamp, pulse);
 
                 totalCalories += (pulse * 0.0012);
                 document.getElementById('calVal').innerText = Math.round(totalCalories);
-            } else {
-                document.getElementById('pulseVal').innerText = '--';
             }
 
-            // 2. Atmung
+            // 2. ATMUNG LOGIK
             document.getElementById('breathVal').innerText = breath;
             if (breath > 0) {
+                if (breath > maxBreath) maxBreath = breath;
                 breathSum += breath;
                 breathCount++;
+
+                document.getElementById('maxBreathVal').innerText = maxBreath;
+                document.getElementById('avgBreathVal').innerText = Math.round(breathSum / breathCount);
             }
             addChartData(breathChart, timestamp, breath);
 
-            // 3. Speed & Distanz
-            document.getElementById('speedVal').innerText = speed;
-            if (speed > maxSpeed) maxSpeed = speed;
+            // 3. PACE & DISTANZ LOGIK
+            document.getElementById('paceVal').innerText = speedToPaceStr(speedKmh);
+            if (speedKmh > 0) {
+                speedSum += speedKmh;
+                speedCount++;
+                const avgSpeed = speedSum / speedCount;
+                document.getElementById('avgPaceVal').innerText = speedToPaceStr(avgSpeed);
+            }
 
-            // Distanzanzeige (Berechnet oder aus BLE)
-            totalDistance = distRaw / 10.0; // Angenommener Skalierungsfaktor
+            totalDistance = distRaw / 10.0;
             document.getElementById('distVal').innerText = totalDistance.toFixed(2);
         }
 
         function addChartData(chart, label, data) {
             chart.data.labels.push(label);
             chart.data.datasets[0].data.push(data);
-
             if (chart.data.labels.length > maxDataPoints) {
                 chart.data.labels.shift();
                 chart.data.datasets[0].data.shift();
@@ -450,46 +509,40 @@
             chart.update();
         }
 
-        // --- WORKOUT STOPPEN & PERFEKTES FOTO RENDER ---
+        // --- WORKOUT STOPPEN & FOTO RENDERN ---
         async function stopWorkout() {
-            if (bleDevice && bleDevice.gatt.connected) {
-                bleDevice.gatt.disconnect();
-            }
+            if (bleDevice && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
 
             document.getElementById('statusText').innerText = "Status: Workout Beendet";
             document.getElementById('connectBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
 
-            const avgPulse = pulseCount > 0 ? Math.round(pulseSum / pulseCount) : '--';
-            const avgBreath = breathCount > 0 ? Math.round(breathSum / breathCount) : '--';
+            // Werte eintragen
+            document.getElementById('sumAvgPulse').innerText = pulseCount > 0 ? Math.round(pulseSum / pulseCount) : '--';
+            document.getElementById('sumMinPulse').innerText = minPulse !== Infinity ? minPulse : '--';
+            document.getElementById('sumMaxPulse').innerText = maxPulse > 0 ? maxPulse : '--';
 
-            document.getElementById('sumPulse').innerText = avgPulse;
-            document.getElementById('sumBreath').innerText = avgBreath;
-            document.getElementById('sumSpeed').innerText = maxSpeed;
-            document.getElementById('sumDist').innerText = totalDistance.toFixed(2);
-            document.getElementById('sumCal').innerText = Math.round(totalCalories);
+            document.getElementById('sumAvgBreath').innerText = breathCount > 0 ? Math.round(breathSum / breathCount) : '--';
+            document.getElementById('sumMaxBreath').innerText = maxBreath > 0 ? maxBreath : '--';
+
+            const avgSpeed = speedCount > 0 ? (speedSum / speedCount) : 0;
+            document.getElementById('sumAvgPace').innerText = speedToPaceStr(avgSpeed);
+            document.getElementById('sumDist').innerText = `${totalDistance.toFixed(2)} km`;
+            document.getElementById('sumCal').innerText = `${Math.round(totalCalories)} kcal`;
             document.getElementById('reportDate').innerText = new Date().toLocaleString('de-DE');
 
-            // Reset UI View
             const card = document.getElementById('reportCard');
             const imgResult = document.getElementById('generatedImageResult');
             card.style.display = 'block';
             imgResult.style.display = 'none';
 
-            // Modal Einblenden
             document.getElementById('summaryModal').style.display = 'flex';
 
-            // html2canvas generiert ein sauberes Einzelbild ohne Doppelkasten
             if (typeof html2canvas !== 'undefined') {
                 try {
-                    const canvas = await html2canvas(card, {
-                        backgroundColor: '#1e293b',
-                        scale: 3 // Sehr hohe Auflösung für scharfe Schrift auf dem Smartphone
-                    });
-
-                    // Das generierte Bild in das <img> Tag einsetzen
+                    const canvas = await html2canvas(card, { backgroundColor: '#1e293b', scale: 3 });
                     imgResult.src = canvas.toDataURL('image/png');
-                    card.style.display = 'none'; // Versteckt das rohe HTML, zeigt nur das reine Bild
+                    card.style.display = 'none';
                     imgResult.style.display = 'block';
                 } catch (err) {
                     console.error("Fehler beim Erstellen des Fotos:", err);
