@@ -359,9 +359,9 @@
                 </div>
             </div>
 
-            <!-- FOTO SPEICHER-PREVIEW FOR IOS -->
+            <!-- Vorschau Export-Grafik -->
             <img id="generatedImageResult" alt="Workout Foto">
-            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">💡 Auf das Bild gedrückt halten $\rightarrow$ <strong>In Fotos sichern</strong></p>
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 10px;">Auf das Bild gedrückt halten &rarr; <strong>In Fotos sichern</strong></p>
 
             <button class="btn-close" onclick="closeModal()">Schließen</button>
         </div>
@@ -387,7 +387,7 @@
         }).addTo(map);
         let trackPolyline = L.polyline([], {color: '#38bdf8', weight: 4}).addTo(map);
 
-        // --- CHART.JS WITH SMOOTH LINES (PointRadius: 0) ---
+        // --- Chart.js Konfiguration ---
         const maxDataPoints = 30;
 
         const ctxPulse = document.getElementById('pulseChart').getContext('2d');
